@@ -14,6 +14,12 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
+      - name: Restore kernel cache
+        id: kcache
+        uses: actions/cache/restore@v4
+        with:
+          path: out/kernel
+          key: kernel-${{ inputs.kernel_version }}-${{ hashFiles('kernel/fleet.config', 'kernel/build-kernel.sh') }}
       - name: Build
         env:
           FLEET_PASSWORD: ${{ secrets.FLEET_PASSWORD }}
@@ -24,6 +30,12 @@ jobs:
           chmod +x build.sh kernel/build-kernel.sh
           sudo --preserve-env=FLEET_PASSWORD,FLEET_SSH_KEY,USB_MODEL,KERNEL_VERSION ./build.sh deps
           sudo --preserve-env=FLEET_PASSWORD,FLEET_SSH_KEY,USB_MODEL,KERNEL_VERSION ./build.sh all
+      - name: Save kernel cache (even if a later step failed)
+        if: always() && steps.kcache.outputs.cache-hit != 'true' && hashFiles('out/kernel/*.deb') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: out/kernel
+          key: kernel-${{ inputs.kernel_version }}-${{ hashFiles('kernel/fleet.config', 'kernel/build-kernel.sh') }}
       - uses: actions/upload-artifact@v4
         with:
           name: fleetos-usb-${{ inputs.usb_model }}
