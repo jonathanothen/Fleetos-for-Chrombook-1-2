@@ -17,7 +17,7 @@ deps() {
   apt-get install -y mmdebstrap qemu-user-static binfmt-support debian-archive-keyring \
     cgpt vboot-utils vboot-kernel-utils u-boot-tools device-tree-compiler e2fsprogs \
     gcc-arm-linux-gnueabihf build-essential bc flex bison libssl-dev libelf-dev \
-    dpkg-dev fakeroot kmod cpio rsync xz-utils curl uuid-runtime
+    dpkg-dev debhelper fakeroot kmod cpio rsync xz-utils curl uuid-runtime
 }
 
 kernel() { bash "$HERE/kernel/build-kernel.sh"; }
