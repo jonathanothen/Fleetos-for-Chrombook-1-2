@@ -1,0 +1,13 @@
+#!/bin/bash
+# Applies the Mac-like XFCE look the first time a user logs in.
+M="$HOME/.config/fleet-macified"
+[ -e "$M" ] && exit 0
+sleep 2
+xfconf-query -c xsettings -p /Net/ThemeName       -n -t string -s "WhiteSur-Light"
+xfconf-query -c xsettings -p /Net/IconThemeName   -n -t string -s "WhiteSur"
+xfconf-query -c xsettings -p /Gtk/FontName        -n -t string -s "Inter 10"
+xfconf-query -c xfwm4 -p /general/theme           -n -t string -s "WhiteSur-Light"
+xfconf-query -c xfwm4 -p /general/button_layout   -n -t string -s "CMH|"
+xfconf-query -c xfwm4 -p /general/title_alignment -n -t string -s "center"
+xfconf-query -c xfwm4 -p /general/use_compositing -n -t bool   -s false
+mkdir -p "$(dirname "$M")" && touch "$M"

@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Mac look (one-time)
+Exec=/usr/local/bin/fleet-macify
+OnlyShowIn=XFCE;

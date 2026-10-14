@@ -1,0 +1,4 @@
+#!/bin/bash
+# First boot on an installed machine: unique identities.
+[ -s /etc/machine-id ] || systemd-machine-id-setup
+ls /etc/ssh/ssh_host_*_key >/dev/null 2>&1 || ssh-keygen -A

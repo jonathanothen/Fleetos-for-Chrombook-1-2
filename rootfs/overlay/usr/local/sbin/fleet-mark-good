@@ -1,0 +1,10 @@
+#!/bin/bash
+# Marks the current kernel partition as successful so A/B fallback works.
+grep -q 'fleet_install=1' /proc/cmdline && exit 0
+guid=$(grep -o 'kern_guid=[^ ]*' /proc/cmdline | cut -d= -f2)
+[ -n "$guid" ] || exit 0
+part=$(cgpt find -1 -u "$guid") || exit 0
+[ -n "$part" ] || exit 0
+disk=${part%p[0-9]*}
+num=${part##*p}
+cgpt add -i "$num" -S 1 -T 0 "$disk"

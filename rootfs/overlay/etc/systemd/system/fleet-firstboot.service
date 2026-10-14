@@ -1,0 +1,12 @@
+[Unit]
+Description=FleetOS first boot (unique keys and ID)
+ConditionKernelCommandLine=!fleet_install=1
+Before=ssh.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/fleet-firstboot
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,90 @@
+#!/bin/bash
+# Installs the running system (from USB) onto the internal eMMC.
+# WIPES THE WHOLE eMMC. No dual boot, no ChromeOS left behind.
+set -uo pipefail
+
+fail() { echo; echo "ERROR: $*"; echo "Install aborted. Switch to tty2 (Ctrl+Alt+F2) to debug."; sleep infinity; }
+set -e
+trap 'fail "command on line $LINENO failed"' ERR
+
+clear
+echo "=============================================="
+echo "  FleetOS installer"
+echo "=============================================="
+
+# --- find the eMMC (it always has a boot0 partition) ---
+TARGET=""
+for b in /sys/block/mmcblk*; do
+  n=$(basename "$b")
+  [[ $n =~ ^mmcblk[0-9]+$ ]] || continue
+  [ -e "/dev/${n}boot0" ] && { TARGET="/dev/$n"; break; }
+done
+[ -n "$TARGET" ] || fail "no internal eMMC found"
+ROOTSRC=$(findmnt -no SOURCE /)
+case $ROOTSRC in "$TARGET"*) fail "booted from the target disk ($TARGET)";; esac
+
+SIZE_GB=$(( $(blockdev --getsize64 "$TARGET") / 1000000000 ))
+echo "Target: $TARGET (${SIZE_GB} GB) -- EVERYTHING ON IT WILL BE ERASED."
+echo "Press any key within 15 seconds to ABORT."
+for i in $(seq 15 -1 1); do
+  printf "\r  Starting in %2d s ... " "$i"
+  if read -r -t 1 -n 1 _; then echo; echo "Aborted. Remove the stick and reboot."; sleep infinity; fi
+done
+echo
+
+KVER=$(ls /boot | sed -n 's/^vmlinuz-//p' | sort -V | tail -1)
+[ -n "$KVER" ] || fail "no kernel in /boot"
+
+echo "[1/5] Partitioning $TARGET"
+swapoff -a || true
+for p in "${TARGET}"p*; do umount "$p" 2>/dev/null || true; done
+blkdiscard -f "$TARGET" 2>/dev/null || true
+wipefs -a "$TARGET" >/dev/null
+cgpt create -z "$TARGET"
+cgpt create "$TARGET"
+cgpt add -i 1 -t kernel -b 8192   -s 131072 -l KERN-A -S 0 -T 0 -P 0 "$TARGET"
+cgpt add -i 2 -t kernel -b 139264 -s 131072 -l KERN-B -S 0 -T 0 -P 0 "$TARGET"
+TOTAL=$(blockdev --getsz "$TARGET")
+cgpt add -i 3 -t data -b 270336 -s $((TOTAL - 270336 - 64)) -l ROOT-A "$TARGET"
+partprobe "$TARGET"; udevadm settle
+sleep 1
+
+echo "[2/5] Creating filesystem"
+mkfs.ext4 -q -F -L fleetroot "${TARGET}p3"
+ROOTUUID=$(cgpt show -i 3 -u "$TARGET" | tr 'A-Z' 'a-z')
+mkdir -p /mnt/target
+mount "${TARGET}p3" /mnt/target
+
+echo "[3/5] Copying the system (a few minutes)"
+rsync -aHAXx / /mnt/target/
+mkdir -p /mnt/target/{proc,sys,dev,run,tmp,mnt,media}
+chmod 1777 /mnt/target/tmp
+
+echo "[4/5] Customising the new machine"
+echo "PARTUUID=$ROOTUUID / ext4 defaults,noatime,commit=60 0 1" > /mnt/target/etc/fstab
+echo "tmpfs /tmp tmpfs defaults,nosuid,nodev 0 0" >> /mnt/target/etc/fstab
+MAC=""
+for d in /sys/class/net/*; do
+  [ "$(basename "$d")" = lo ] && continue
+  MAC=$(tr -d ':' < "$d/address"); [ -n "$MAC" ] && break
+done
+HN="fleet-${MAC: -6}"; [ -n "$MAC" ] || HN="fleet-$(head -c4 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+echo "$HN" > /mnt/target/etc/hostname
+sed -i "s/^127\.0\.1\.1.*/127.0.1.1 $HN/" /mnt/target/etc/hosts
+: > /mnt/target/etc/machine-id
+rm -f /mnt/target/etc/ssh/ssh_host_*
+
+echo "[5/5] Writing kernel (slot A + fallback slot B)"
+fleet-mkkernel -v "$KVER" -R "$ROOTUUID" -m detect -o /tmp/kern.bin
+dd if=/tmp/kern.bin of="${TARGET}p1" bs=1M conv=fsync status=none
+dd if=/tmp/kern.bin of="${TARGET}p2" bs=1M conv=fsync status=none
+cgpt add -i 1 -P 2 -T 3 -S 0 "$TARGET"
+cgpt add -i 2 -P 1 -T 3 -S 0 "$TARGET"
+
+sync
+umount /mnt/target
+echo
+echo "DONE. Machine $HN powers off in 5 s. Remove the USB stick."
+sleep 5
+systemctl poweroff
+sleep infinity

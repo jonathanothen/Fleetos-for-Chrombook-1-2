@@ -1,0 +1,10 @@
+[Unit]
+Description=Mark kernel slot as successful
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/fleet-mark-good
+
+[Install]
+WantedBy=multi-user.target

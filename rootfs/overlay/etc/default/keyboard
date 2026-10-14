@@ -1,0 +1,5 @@
+XKBMODEL="chromebook"
+XKBLAYOUT="se,no,dk,fi"
+XKBVARIANT=""
+XKBOPTIONS="grp:alt_shift_toggle"
+BACKSPACE="guess"

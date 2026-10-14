@@ -1,0 +1,77 @@
+#!/bin/bash
+# Builds a signed ChromeOS kernel partition image (FIT + vboot) for Exynos Chromebooks.
+#   fleet-mkkernel -v KVER -R ROOT_PARTUUID -o OUT [-r ROOTFS=/] [-m detect|auto|snow|pit] [-c "extra cmdline"]
+# -m detect : pick the dtb for the machine we run on (falls back to all)
+# -m auto   : include all dtbs (for a USB stick that must boot on both models)
+set -euo pipefail
+R=/; MODEL=detect; EXTRA=""
+while getopts v:R:o:r:m:c: o; do
+  case $o in v) KVER=$OPTARG;; R) ROOTUUID=$OPTARG;; o) OUT=$OPTARG;;
+             r) R=$OPTARG;; m) MODEL=$OPTARG;; c) EXTRA=$OPTARG;; *) exit 2;; esac
+done
+: "${KVER:?-v missing}" "${ROOTUUID:?-R missing}" "${OUT:?-o missing}"
+DEVKEYS="${DEVKEYS:-/usr/share/vboot/devkeys}"
+ZIMG="$R/boot/vmlinuz-$KVER"
+DTBDIR="$R/usr/lib/linux-image-$KVER"
+[ -f "$ZIMG" ] || { echo "missing $ZIMG" >&2; exit 1; }
+[ -d "$DTBDIR" ] || { echo "missing $DTBDIR" >&2; exit 1; }
+[ -f "$DEVKEYS/kernel.keyblock" ] || { echo "missing vboot devkeys in $DEVKEYS" >&2; exit 1; }
+
+T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+
+mapfile -t snow < <(find "$DTBDIR" -name 'exynos5250-snow*.dtb' | sort)
+mapfile -t pit  < <(find "$DTBDIR" -name 'exynos5420-peach-pit*.dtb' | sort)
+case $MODEL in
+  snow) DTBS=("${snow[@]}");;
+  pit)  DTBS=("${pit[@]}");;
+  auto) DTBS=("${snow[@]}" "${pit[@]}");;
+  detect)
+    DTBS=()
+    if [ -r /proc/device-tree/compatible ] && [ "$R" = / ]; then
+      rc=$(tr '\0' '\n' < /proc/device-tree/compatible | head -1)
+      for d in "${snow[@]}" "${pit[@]}"; do
+        [ "$(fdtget "$d" / compatible | awk '{print $1}')" = "$rc" ] && DTBS+=("$d")
+      done
+      if [ ${#DTBS[@]} -eq 0 ]; then
+        if tr '\0' ' ' < /proc/device-tree/compatible | grep -q 'google,snow'; then DTBS=("${snow[@]}")
+        elif tr '\0' ' ' < /proc/device-tree/compatible | grep -q 'google,pit'; then DTBS=("${pit[@]}"); fi
+      fi
+    fi
+    [ ${#DTBS[@]} -gt 0 ] || DTBS=("${snow[@]}" "${pit[@]}");;
+  *) echo "unknown -m $MODEL" >&2; exit 2;;
+esac
+[ ${#DTBS[@]} -gt 0 ] || { echo "no dtbs found" >&2; exit 1; }
+
+{
+  echo '/dts-v1/;'
+  echo '/ { description = "fleetos"; #address-cells = <1>;'
+  echo ' images {'
+  echo "  kernel@1 { description = \"kernel\"; data = /incbin/(\"$ZIMG\"); type = \"kernel_noload\"; arch = \"arm\"; os = \"linux\"; compression = \"none\"; load = <0>; entry = <0>; hash@1 { algo = \"sha1\"; }; };"
+  i=1
+  for d in "${DTBS[@]}"; do
+    echo "  fdt@$i { description = \"$(basename "$d")\"; data = /incbin/(\"$d\"); type = \"flat_dt\"; arch = \"arm\"; compression = \"none\"; hash@1 { algo = \"sha1\"; }; };"
+    i=$((i+1))
+  done
+  echo ' };'
+  echo ' configurations { default = "conf@1";'
+  i=1
+  for d in "${DTBS[@]}"; do
+    compat=$(fdtget "$d" / compatible | sed 's/ /", "/g')
+    echo "  conf@$i { description = \"$(basename "$d")\"; kernel = \"kernel@1\"; fdt = \"fdt@$i\"; compatible = \"$compat\"; };"
+    i=$((i+1))
+  done
+  echo ' };'
+  echo '};'
+} > "$T/kernel.its"
+
+mkimage -D "-I dts -O dtb -p 2048" -f "$T/kernel.its" "$T/kernel.itb" >/dev/null
+
+echo "console=tty1 root=PARTUUID=$ROOTUUID rootwait rw rootfstype=ext4 noinitrd quiet loglevel=3 kern_guid=%U $EXTRA" > "$T/cmdline"
+dd if=/dev/zero of="$T/bootloader.bin" bs=512 count=1 status=none
+
+vbutil_kernel --pack "$OUT" \
+  --keyblock "$DEVKEYS/kernel.keyblock" \
+  --signprivate "$DEVKEYS/kernel_data_key.vbprivk" \
+  --version 1 --config "$T/cmdline" --bootloader "$T/bootloader.bin" \
+  --vmlinuz "$T/kernel.itb" --arch arm >/dev/null
+echo "kernel image ready: $OUT (dtb: ${DTBS[*]##*/})"

@@ -1,0 +1,25 @@
+#!/bin/bash
+# On a new kernel: build a signed ChromeOS kernel partition and write it to the INACTIVE slot (A/B).
+# Silently skipped inside the build chroot and on the installer stick.
+KVER="$1"
+[ -n "$KVER" ] || exit 0
+grep -q 'kern_guid=' /proc/cmdline 2>/dev/null || exit 0
+grep -q 'fleet_install=1' /proc/cmdline && exit 0
+command -v cgpt >/dev/null || exit 0
+set -e
+
+cur=$(grep -o 'kern_guid=[^ ]*' /proc/cmdline | cut -d= -f2)
+curpart=$(cgpt find -1 -u "$cur")
+disk=${curpart%p[0-9]*}
+curnum=${curpart##*p}
+newnum=$((3 - curnum))
+rootuuid=$(findmnt -no PARTUUID /)
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+fleet-mkkernel -v "$KVER" -R "$rootuuid" -m detect -o "$tmp"
+dd if="$tmp" of="${disk}p${newnum}" bs=1M conv=fsync status=none
+# New slot first; 3 tries, then firmware falls back to the old one
+cgpt add -i "$newnum" -P 2 -T 3 -S 0 "$disk"
+cgpt add -i "$curnum" -P 1 "$disk"
+echo "fleet: kernel $KVER written to slot $newnum (fallback: slot $curnum)"
