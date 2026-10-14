@@ -1,0 +1,37 @@
+name: Build FleetOS USB image
+on:
+  workflow_dispatch:
+    inputs:
+      usb_model:
+        description: "auto (both models), snow (XE303C12) or pit (XE503C12)"
+        default: auto
+      kernel_version:
+        description: "Linux version from kernel.org"
+        default: "6.12.40"
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        env:
+          FLEET_PASSWORD: ${{ secrets.FLEET_PASSWORD }}
+          FLEET_SSH_KEY: ${{ secrets.FLEET_SSH_KEY }}
+          USB_MODEL: ${{ inputs.usb_model }}
+          KERNEL_VERSION: ${{ inputs.kernel_version }}
+        run: |
+          chmod +x build.sh kernel/build-kernel.sh
+          sudo --preserve-env=FLEET_PASSWORD,FLEET_SSH_KEY,USB_MODEL,KERNEL_VERSION ./build.sh deps
+          sudo --preserve-env=FLEET_PASSWORD,FLEET_SSH_KEY,USB_MODEL,KERNEL_VERSION ./build.sh all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fleetos-usb-${{ inputs.usb_model }}
+          path: |
+            out/*.img.xz
+            out/*.sha256
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fleetos-kernel-debs
+          path: out/kernel/*.deb
