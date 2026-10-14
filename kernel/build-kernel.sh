@@ -30,7 +30,8 @@ for sym in EXT4_FS MMC_DW_EXYNOS KEYBOARD_CROS_EC MWIFIEX_SDIO DRM_EXYNOS EFI_PA
   grep -Eq "^CONFIG_${sym}=[ym]" .config || { echo "MISSING in .config: $sym"; exit 1; }
 done
 
-make -j"$(nproc)" bindeb-pkg KDEB_PKGVERSION="${KERNEL_VERSION}-1fleet1" \
+# DPKG_FLAGS=-d: skip the build-dep check (it wants armhf libssl-dev, which is not needed for cross-compiling)
+make -j"$(nproc)" bindeb-pkg DPKG_FLAGS=-d KDEB_PKGVERSION="${KERNEL_VERSION}-1fleet1" \
   KBUILD_BUILD_USER=fleet KBUILD_BUILD_HOST=builder
 cd "$WORK_DIR"
 rm -f "$OUT_DIR"/kernel/*.deb
