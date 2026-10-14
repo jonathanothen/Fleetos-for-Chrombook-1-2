@@ -56,9 +56,9 @@ pipewire-pulse
 wireplumber
 pavucontrol
 gvfs
-policykit-1-gnome
+lxpolkit
 firefox-esr
-firefox-esr-l10n-sv
+firefox-esr-l10n-sv-se
 fonts-inter
 fonts-noto-core
 gtk2-engines-murrine
