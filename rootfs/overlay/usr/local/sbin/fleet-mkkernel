@@ -46,7 +46,7 @@ esac
   echo '/dts-v1/;'
   echo '/ { description = "fleetos"; #address-cells = <1>;'
   echo ' images {'
-  echo "  kernel@1 { description = \"kernel\"; data = /incbin/(\"$ZIMG\"); type = \"kernel_noload\"; arch = \"arm\"; os = \"linux\"; compression = \"none\"; load = <0>; entry = <0>; hash@1 { algo = \"sha1\"; }; };"
+  echo "  kernel@1 { description = \"kernel\"; data = /incbin/(\"$ZIMG\"); type = \"kernel_noload\"; arch = \"arm\"; os = \"linux\"; compression = \"none\"; load = <0>; entry = <0>; };"
   i=1
   for d in "${DTBS[@]}"; do
     echo "  fdt@$i { description = \"$(basename "$d")\"; data = /incbin/(\"$d\"); type = \"flat_dt\"; arch = \"arm\"; compression = \"none\"; hash@1 { algo = \"sha1\"; }; };"
@@ -56,8 +56,8 @@ esac
   echo ' configurations { default = "conf@1";'
   i=1
   for d in "${DTBS[@]}"; do
-    compat=$(fdtget "$d" / compatible | sed 's/ /", "/g')
-    echo "  conf@$i { description = \"$(basename "$d")\"; kernel = \"kernel@1\"; fdt = \"fdt@$i\"; compatible = \"$compat\"; };"
+    # Same layout as the Kali Exynos image that boots on these machines: plain kernel/fdt pairs
+    echo "  conf@$i { kernel = \"kernel@1\"; fdt = \"fdt@$i\"; };"
     i=$((i+1))
   done
   echo ' };'
@@ -66,7 +66,7 @@ esac
 
 mkimage -D "-I dts -O dtb -p 2048" -f "$T/kernel.its" "$T/kernel.itb" >/dev/null
 
-echo "console=tty1 root=PARTUUID=$ROOTUUID rootwait rw rootfstype=ext4 noinitrd quiet loglevel=3 kern_guid=%U $EXTRA" > "$T/cmdline"
+echo "console=tty1 root=PARTUUID=$ROOTUUID rootwait rw rootfstype=ext4 noinitrd gpt quiet loglevel=3 kern_guid=%U $EXTRA" > "$T/cmdline"
 dd if=/dev/zero of="$T/bootloader.bin" bs=512 count=1 status=none
 
 vbutil_kernel --pack "$OUT" \

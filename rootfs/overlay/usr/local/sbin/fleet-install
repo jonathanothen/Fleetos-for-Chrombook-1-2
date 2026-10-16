@@ -42,10 +42,11 @@ blkdiscard -f "$TARGET" 2>/dev/null || true
 wipefs -a "$TARGET" >/dev/null
 cgpt create -z "$TARGET"
 cgpt create "$TARGET"
-cgpt add -i 1 -t kernel -b 8192   -s 131072 -l KERN-A -S 0 -T 0 -P 0 "$TARGET"
-cgpt add -i 2 -t kernel -b 139264 -s 131072 -l KERN-B -S 0 -T 0 -P 0 "$TARGET"
+cgpt boot -p "$TARGET"   # protective MBR: Linux ignores GPT disks without it
+cgpt add -i 1 -t kernel -b 8192   -s 32768 -l KERN-A -S 0 -T 0 -P 0 "$TARGET"
+cgpt add -i 2 -t kernel -b 40960  -s 32768 -l KERN-B -S 0 -T 0 -P 0 "$TARGET"
 TOTAL=$(blockdev --getsz "$TARGET")
-cgpt add -i 3 -t data -b 270336 -s $((TOTAL - 270336 - 64)) -l ROOT-A "$TARGET"
+cgpt add -i 3 -t data -b 73728 -s $((TOTAL - 73728 - 64)) -l ROOT-A "$TARGET"
 partprobe "$TARGET"; udevadm settle
 sleep 1
 
