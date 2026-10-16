@@ -20,7 +20,13 @@ deps() {
     dpkg-dev debhelper fakeroot kmod cpio rsync xz-utils curl uuid-runtime
 }
 
-kernel() { bash "$HERE/kernel/build-kernel.sh"; }
+kernel() {
+  if ls "$OUT_DIR"/kernel/linux-image-*.deb >/dev/null 2>&1; then
+    echo "Kernel already built (cache), skipping."
+  else
+    bash "$HERE/kernel/build-kernel.sh"
+  fi
+}
 
 rootfs() {
   rm -rf "$ROOTFS"
@@ -48,17 +54,19 @@ image() {
   local IMG="$OUT_DIR/fleetos-usb-${USB_MODEL}.img"
   local ROOT_MIB=$(( $(du -sm "$ROOTFS" | cut -f1) * 115 / 100 + 300 ))
   local ROOT_SECT=$(( ROOT_MIB * 2048 ))
-  local TOTAL=$(( 270336 + ROOT_SECT + 64 ))
+  local ROOT_START=73728   # 8192 + 2 x 32768 (16 MiB kernel partitions, as on ChromeOS and Kali)
+  local TOTAL=$(( ROOT_START + ROOT_SECT + 64 ))
   local ROOTGUID; ROOTGUID=$(uuidgen)
 
   rm -f "$IMG"; truncate -s $(( TOTAL * 512 )) "$IMG"
   cgpt create "$IMG"
-  cgpt add -i 1 -t kernel -b 8192   -s 131072 -l KERN-A -S 1 -T 0 -P 2 "$IMG"
-  cgpt add -i 2 -t kernel -b 139264 -s 131072 -l KERN-B -S 0 -T 0 -P 0 "$IMG"
-  cgpt add -i 3 -t data   -b 270336 -s "$ROOT_SECT" -l ROOT-A -u "$ROOTGUID" "$IMG"
+  cgpt boot -p "$IMG"   # protective MBR: Linux ignores GPT disks without it
+  cgpt add -i 1 -t kernel -b 8192   -s 32768 -l KERN-A -S 1 -T 0 -P 2 "$IMG"
+  cgpt add -i 2 -t kernel -b 40960  -s 32768 -l KERN-B -S 0 -T 0 -P 0 "$IMG"
+  cgpt add -i 3 -t data   -b "$ROOT_START" -s "$ROOT_SECT" -l ROOT-A -u "$ROOTGUID" "$IMG"
 
   echo "PARTUUID=$ROOTGUID / ext4 defaults,noatime 0 1" > "$ROOTFS/etc/fstab"
-  mke2fs -q -t ext4 -L fleetroot -d "$ROOTFS" -E offset=$(( 270336 * 512 )) "$IMG" "${ROOT_MIB}M"
+  mke2fs -q -t ext4 -L fleetroot -d "$ROOTFS" -E offset=$(( ROOT_START * 512 )) "$IMG" "${ROOT_MIB}M"
 
   bash "$HERE/rootfs/overlay/usr/local/sbin/fleet-mkkernel" -r "$ROOTFS" -v "$KVER" \
     -R "$ROOTGUID" -m "$USB_MODEL" -c "fleet_install=1" -o "$WORK_DIR/kern-usb.bin"
