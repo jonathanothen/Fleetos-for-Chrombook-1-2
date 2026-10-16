@@ -21,7 +21,9 @@ tar xf "$TARBALL"
 cd "linux-${KERNEL_VERSION}"
 
 export ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-
-make multi_v7_defconfig
+# exynos_defconfig (not multi_v7): the old ChromeOS firmware only loads a small kernel.
+# The Kali Exynos image that boots on these machines has a 4.4 MB kernel.
+make exynos_defconfig
 ./scripts/kconfig/merge_config.sh -m .config "$HERE/fleet.config"
 make olddefconfig
 
@@ -29,6 +31,12 @@ make olddefconfig
 for sym in EXT4_FS MMC_DW_EXYNOS KEYBOARD_CROS_EC MWIFIEX_SDIO DRM_EXYNOS EFI_PARTITION; do
   grep -Eq "^CONFIG_${sym}=[ym]" .config || { echo "MISSING in .config: $sym"; exit 1; }
 done
+
+# Report kernel size (known-good Kali kernel: 4.4 MB; our first 11.9 MB build did not boot)
+make -j"$(nproc)" zImage
+ZSIZE=$(stat -c %s arch/arm/boot/zImage)
+echo "zImage size: $ZSIZE bytes ($((ZSIZE/1024/1024)) MiB)"
+[ "$ZSIZE" -gt 7340032 ] && echo "WARNING: zImage is larger than 7 MiB, the firmware may refuse to load it"
 
 # DPKG_FLAGS=-d: skip the build-dep check (it wants armhf libssl-dev, which is not needed for cross-compiling)
 make -j"$(nproc)" bindeb-pkg DPKG_FLAGS=-d KDEB_PKGVERSION="${KERNEL_VERSION}-1fleet1" \
