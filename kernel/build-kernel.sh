@@ -33,6 +33,10 @@ for sym in EXT4_FS MMC_DW_EXYNOS KEYBOARD_CROS_EC MWIFIEX_SDIO DRM_EXYNOS EFI_PA
 done
 
 # Report kernel size (known-good Kali kernel: 4.4 MB; our first 11.9 MB build did not boot)
+for sym in PROVE_LOCKING LOCKDEP DEBUG_ATOMIC_SLEEP PROVE_RCU; do
+  grep -Eq "^CONFIG_${sym}=y" .config && { echo "UNWANTED debug option still enabled: $sym"; exit 1; }
+done
+
 make -j"$(nproc)" zImage
 ZSIZE=$(stat -c %s arch/arm/boot/zImage)
 echo "zImage size: $ZSIZE bytes ($((ZSIZE/1024/1024)) MiB)"
