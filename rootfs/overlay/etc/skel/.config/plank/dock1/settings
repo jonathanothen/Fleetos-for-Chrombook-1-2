@@ -1,5 +1,8 @@
 [PlankDockPreferences]
 DockItems=thunar.dockitem;;firefox-esr.dockitem;;xfce4-terminal.dockitem;;mousepad.dockitem;;settings.dockitem
-IconSize=40
+IconSize=48
 Position=3
-Theme=Default
+Theme=FleetOS
+ZoomEnabled=true
+ZoomPercent=130
+Alignment=3

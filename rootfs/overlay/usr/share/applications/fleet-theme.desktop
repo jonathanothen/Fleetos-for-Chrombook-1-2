@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Utseende
+Name[en]=Appearance
+Comment=Byt FleetOS-tema
+Exec=/usr/local/bin/fleet-theme gui
+Icon=preferences-desktop-theme
+Categories=Settings;DesktopSettings;

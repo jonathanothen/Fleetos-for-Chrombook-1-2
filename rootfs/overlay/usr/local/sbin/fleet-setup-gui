@@ -3,7 +3,7 @@
 # as root, before the login screen. There is no built-in account, so this wizard creates the first
 # (administrator) user. If it is cancelled or crashes, fleet-setup restarts it and finally falls back to a
 # text-mode wizard.
-export LANG=C.UTF-8 NO_AT_BRIDGE=1 GDK_BACKEND=x11 HOME=/root GTK_THEME=WhiteSur-Light
+export LANG=C.UTF-8 NO_AT_BRIDGE=1 GDK_BACKEND=x11 HOME=/root GTK_THEME=FleetOS
 SEP=$'\x1f'
 RULES=/usr/share/X11/xkb/rules/base.lst
 
@@ -11,7 +11,7 @@ RULES=/usr/share/X11/xkb/rules/base.lst
 mkdir -p /root/.config/gtk-3.0
 cat > /root/.config/gtk-3.0/settings.ini <<'EOF'
 [Settings]
-gtk-theme-name=WhiteSur-Light
+gtk-theme-name=FleetOS
 gtk-icon-theme-name=WhiteSur
 gtk-font-name=Inter 11
 EOF

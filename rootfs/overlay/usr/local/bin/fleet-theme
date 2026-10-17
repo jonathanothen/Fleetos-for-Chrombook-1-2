@@ -1,0 +1,50 @@
+#!/bin/bash
+# Switch the FleetOS look.   fleet-theme            (pick from a list)
+#                            fleet-theme list
+#                            fleet-theme set <id>   (light midnatt solnedgang mynta sakura)
+# Only changes settings (GTK theme, window frame, wallpaper, dock theme) - no extra services, no cost at runtime.
+D=/usr/share/fleet-themes
+CUR="$HOME/.config/fleet-theme"
+
+field() { grep -m1 "^$2=" "$D/$1.conf" | cut -d= -f2-; }
+ids()   { for f in "$D"/*.conf; do basename "$f" .conf; done; }
+
+apply() {
+  id=$1
+  [ -f "$D/$id.conf" ] || { echo "unknown theme: $id" >&2; exit 1; }
+  gtk=$(field "$id" GTKNAME); dark=$(field "$id" DARK)
+  wall="/usr/share/backgrounds/fleetos/fleetos-$id.svg"
+  frame=WhiteSur-Light
+  [ "$dark" = 1 ] && [ -d /usr/share/themes/WhiteSur-Dark ] && frame=WhiteSur-Dark
+
+  xfconf-query -c xsettings -p /Net/ThemeName -n -t string -s "$gtk"
+  xfconf-query -c xfwm4 -p /general/theme     -n -t string -s "$frame"
+
+  props=$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -E '/last-image$')
+  [ -z "$props" ] && props="/backdrop/screen0/monitor0/workspace0/last-image"
+  for p in $props; do
+    xfconf-query -c xfce4-desktop -p "$p" -n -t string -s "$wall"
+    xfconf-query -c xfce4-desktop -p "${p%/last-image}/image-style" -n -t int -s 5
+  done
+
+  PS="$HOME/.config/plank/dock1/settings"
+  if [ -f "$PS" ]; then
+    sed -i "s/^Theme=.*/Theme=$gtk/" "$PS"
+    if pgrep -x plank >/dev/null; then pkill -x plank; (setsid plank >/dev/null 2>&1 &); fi
+  fi
+  mkdir -p "$(dirname "$CUR")" && echo "$id" > "$CUR"
+}
+
+case "${1:-gui}" in
+  list) for i in $(ids); do echo "$i  $(field "$i" LABEL)"; done ;;
+  set)  apply "${2:?usage: fleet-theme set <id>}" ;;
+  gui)
+    args=()
+    for i in $(ids); do args+=("$i" "$(field "$i" LABEL)"); done
+    sel=$(yad --list --title="Utseende" --width=340 --height=280 --center \
+          --text="Välj tema" --column=ID:HD --column=Tema --print-column=1 --separator= \
+          --button="Avbryt:1" --button="Använd:0" "${args[@]}") || exit 0
+    [ -n "$sel" ] && apply "$sel"
+    ;;
+  *) echo "usage: fleet-theme [list|set <id>|gui]" >&2; exit 1 ;;
+esac

@@ -1,0 +1,49 @@
+#!/bin/bash
+# Build-time: turns /usr/share/fleet-themes/*.conf + *.in templates into real themes.
+#   GTK theme   -> /usr/share/themes/<GTKNAME>/{index.theme,gtk-3.0/gtk.css}
+#   Plank theme -> /usr/share/plank/themes/<GTKNAME>/dock.theme
+#   Wallpaper   -> /usr/share/backgrounds/fleetos/fleetos-<id>.svg
+# Only text files are produced (~10 KB per theme); nothing is loaded at runtime beyond the active one.
+set -euo pipefail
+SRC=${1:-/usr/share/fleet-themes}
+OUT=${2:-}          # optional staging root (for testing); empty = real /usr
+
+for conf in "$SRC"/*.conf; do
+  sedf=$(mktemp)
+  while IFS== read -r k v; do
+    [ -z "$k" ] && continue
+    printf 's|@@%s@@|%s|g\n' "$k" "$(printf '%s' "$v" | sed 's/[|&\\]/\\&/g')" >> "$sedf"
+    case $k in ID) ID=$v;; GTKNAME) GTKNAME=$v;; BASE) BASE=$v;; DARK) DARK=$v;; esac
+  done < "$conf"
+
+  # Dark base theme missing (WhiteSur build failed or only Light installed)? fall back to Light.
+  if [ -z "$OUT" ] && [ ! -d "/usr/share/themes/$BASE" ]; then
+    echo "WARN: /usr/share/themes/$BASE missing, using WhiteSur-Light for $ID" >&2
+    # Rewrite the existing BASE rule (appending a second one would never match: the first rule already ran)
+    sed -i 's#^s|@@BASE@@|.*#s|@@BASE@@|WhiteSur-Light|g#' "$sedf"
+  fi
+
+  T="$OUT/usr/share/themes/$GTKNAME"
+  mkdir -p "$T/gtk-3.0" "$OUT/usr/share/plank/themes/$GTKNAME" "$OUT/usr/share/backgrounds/fleetos"
+  sed -f "$sedf" "$SRC/gtk.css.in"       > "$T/gtk-3.0/gtk.css"
+  sed -f "$sedf" "$SRC/dock.theme.in"    > "$OUT/usr/share/plank/themes/$GTKNAME/dock.theme"
+  sed -f "$sedf" "$SRC/wallpaper.svg.in" > "$OUT/usr/share/backgrounds/fleetos/fleetos-$ID.svg"
+  cat > "$T/index.theme" <<EOF
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=$GTKNAME
+Comment=FleetOS flat rounded theme
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=$GTKNAME
+IconTheme=WhiteSur
+EOF
+  rm -f "$sedf"
+
+  # Anything left unreplaced is a typo in a template or palette
+  if grep -l '@@' "$T/gtk-3.0/gtk.css" "$OUT/usr/share/plank/themes/$GTKNAME/dock.theme" "$OUT/usr/share/backgrounds/fleetos/fleetos-$ID.svg" 2>/dev/null; then
+    echo "ERROR: unreplaced placeholders in theme $ID" >&2; exit 1
+  fi
+  echo "generated $ID ($GTKNAME)"
+done

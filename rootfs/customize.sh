@@ -28,9 +28,15 @@ rm -f /tmp/linux-image-*.deb
 # --- Mac-like look: WhiteSur theme + icons (fetched at build time) ---
 git clone --depth 1 https://github.com/vinceliuice/WhiteSur-gtk-theme /tmp/ws-gtk
 git clone --depth 1 https://github.com/vinceliuice/WhiteSur-icon-theme /tmp/ws-icons
-( cd /tmp/ws-gtk && git rev-parse HEAD > /usr/share/fleet-theme-gtk.rev && ./install.sh -d /usr/share/themes -n WhiteSur -c Light 2>&1 | tail -3 ) || true
+( cd /tmp/ws-gtk && git rev-parse HEAD > /usr/share/fleet-theme-gtk.rev && ./install.sh -d /usr/share/themes -n WhiteSur -c light -c dark 2>&1 | tail -3 ) || true
+# Fail loudly here instead of shipping themes without their WhiteSur base (the line above hides errors)
+[ -d /usr/share/themes/WhiteSur-Light ] || echo "WARN: WhiteSur-Light GTK theme was NOT installed"
+[ -d /usr/share/themes/WhiteSur-Dark ]  || echo "WARN: WhiteSur-Dark GTK theme was NOT installed"
 ( cd /tmp/ws-icons && git rev-parse HEAD > /usr/share/fleet-theme-icons.rev && ./install.sh -d /usr/share/icons 2>&1 | tail -3 ) || true
 rm -rf /tmp/ws-gtk /tmp/ws-icons
+# FleetOS themes (light, midnatt, solnedgang, mynta, sakura) are generated from small palette files
+chmod +x /usr/local/sbin/fleet-theme-gen /usr/local/bin/fleet-theme
+/usr/local/sbin/fleet-theme-gen
 
 # --- Services ---
 # First-boot wizard: runs on the installed machine, not on the install stick (see fleet-setup.service)
