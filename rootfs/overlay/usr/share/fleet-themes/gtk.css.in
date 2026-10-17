@@ -38,8 +38,12 @@
 /* Only real windows get the window colour. A bare ".background" also matches inner containers, which then
    paint square corners over their rounded parents (the black "double corners"). */
 window, window.background, dialog.background { background-color: @fleet_window; color: @fleet_text; }
-window.csd, decoration { border-radius: 14px; }
-decoration { box-shadow: 0 8px 28px alpha(black, @@SHADOW@@), 0 0 0 1px alpha(@@OVER@@, 0.08); }
+/* Every window has a "decoration" node, also the undecorated ones (start menu, popups, tooltips). Giving all of
+   them the big shadow draws it as a black box around the whole window. Shadow only on client-side-decorated
+   windows (dialogs etc.), none on the rest. */
+window decoration { box-shadow: none; border-radius: 0; }
+window.csd, window.csd decoration { border-radius: 14px; }
+window.csd decoration { box-shadow: 0 8px 28px alpha(black, @@SHADOW@@), 0 0 0 1px alpha(@@OVER@@, 0.08); }
 
 selection, *:selected, .view:selected, textview text selection {
   background-color: @fleet_accent; color: #FFFFFF;

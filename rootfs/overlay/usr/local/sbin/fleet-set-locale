@@ -1,0 +1,16 @@
+#!/bin/bash
+# Root helper: set the system language. Called through pkexec by fleet-language (polkit asks for the password).
+#   fleet-set-locale xx_XX.UTF-8
+set -euo pipefail
+LOC=${1:?usage: fleet-set-locale xx_XX.UTF-8}
+[[ $LOC =~ ^[A-Za-z_]+(@[A-Za-z]+)?\.UTF-8$ ]] || { echo "invalid locale: $LOC" >&2; exit 2; }
+grep -qE "^${LOC//./\\.} UTF-8" /usr/share/i18n/SUPPORTED || { echo "unsupported locale: $LOC" >&2; exit 2; }
+
+if grep -q "^# *${LOC//./\\.} UTF-8" /etc/locale.gen; then
+  sed -i "s/^# *${LOC//./\\.} UTF-8/$LOC UTF-8/" /etc/locale.gen
+else
+  grep -q "^${LOC//./\\.} UTF-8" /etc/locale.gen || echo "$LOC UTF-8" >> /etc/locale.gen
+fi
+locale-gen >/dev/null
+update-locale LANG="$LOC"
+echo "language set to $LOC"

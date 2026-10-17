@@ -1,0 +1,29 @@
+#!/bin/bash
+# Choose the system language (any language). Administrator password required (polkit asks for it).
+export LANG=${LANG:-C.UTF-8}
+SEP=$'\x1f'
+LIST=/usr/share/fleet-setup/languages.list
+Y() { yad --center --title="Language" --window-icon=preferences-desktop-locale --separator="$SEP" --borders=16 "$@"; }
+clean() { local v=${1//$SEP/}; echo "${v//|/}"; }
+
+rows() { while IFS='|' read -r c n; do echo "$c"; echo "$n"; done < "$LIST"; }
+
+while true; do
+  LOC=$(rows | Y --list --width=560 --height=520 --search-column=2 \
+    --column="Code:HD" --column="Language" --print-column=1 \
+    --text="<big><b>Language</b></big>\nCurrent: <b>$(echo "$LANG" | cut -d. -f1)</b>. Type to search." \
+    --button="Cancel:1" --button="Apply:0") || exit 0
+  LOC=$(clean "$LOC"); [ -n "$LOC" ] || continue
+  if [ "$LOC" = other ]; then
+    LOC=$(Y --entry --width=520 --text="Locale code, for example <b>ja_JP.UTF-8</b>." --entry-text="en_US.UTF-8" \
+          --button="Back:1" --button="Apply:0") || continue
+    LOC=$(clean "$LOC")
+  fi
+  break
+done
+
+if out=$(pkexec /usr/local/sbin/fleet-set-locale "$LOC" 2>&1); then
+  Y --info --text="Language set to <b>$LOC</b>.\n\nLog out and back in for it to take effect." --button="OK:0"
+else
+  Y --error --text="Could not change the language:\n$out" --button="OK:0"
+fi

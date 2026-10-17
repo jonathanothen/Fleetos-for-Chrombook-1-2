@@ -1,28 +1,43 @@
 #!/bin/bash
-# First-boot audio setup: ALSA mixers on these Chromebooks start muted and unrouted.
-# Best effort and generic: unmute every playback switch/route and set sensible output volumes.
-# The result is saved with alsactl so it survives reboots. Re-run manually: sudo fleet-audio-init force
+# First-boot audio setup for the Chromebook's MAX98095/MAX98090 codec. The mixers start muted and unrouted.
+# Do ONLY what is needed: route DAC1 straight to the speaker and headphone amplifiers, set a moderate level,
+# and switch everything else off. (An earlier version "unmuted everything": that enabled the uninitialised
+# equaliser/biquad filters and fed the inputs into the outputs, which produced screeching.)
+# Re-run manually with: sudo fleet-audio-init force
 DONE=/var/lib/fleet-audio-init.done
 [ "$1" = force ] && rm -f "$DONE"
 [ -e "$DONE" ] && exit 0
 
-# Wait for the sound card to appear (driver is loaded by udev a few seconds after boot)
+# Wait for the sound card (the driver is loaded by udev a few seconds after boot)
 for _ in $(seq 1 30); do grep -q '[0-9]' /proc/asound/cards 2>/dev/null && break; sleep 1; done
 grep -q '[0-9]' /proc/asound/cards 2>/dev/null || exit 0
 
 for card in $(sed -n 's/^ *\([0-9]\+\) \[.*/\1/p' /proc/asound/cards); do
+  have() { amixer -c "$card" scontrols 2>/dev/null | grep -qF "'$1',"; }
+  set()  { have "$1" && amixer -c "$card" -q sset "$1" "${@:2}" 2>/dev/null || true; }
+
+  # 1. Everything that could colour or feed back into the output: OFF
   amixer -c "$card" scontrols 2>/dev/null | sed -n "s/^Simple mixer control '\(.*\)',[0-9]\+$/\1/p" | while IFS= read -r ctl; do
     case "$ctl" in
-      *[Mm]ic*|*MIC*|*[Ll]ine*in*|*Capture*|*ADC*|*Input*) continue ;;   # leave recording side alone
-    esac
-    amixer -c "$card" -q sset "$ctl" unmute 2>/dev/null || true
-    case "$ctl" in
-      *Speaker*|*Headphone*|*Receiver*)   # output amplifiers: keep moderate, 80% is painfully loud
-        amixer -c "$card" -q sset "$ctl" 45% 2>/dev/null || true ;;
-      *Playback*|*Master*|*PCM*|*DAC*|*DAI*|*Digital*|*Output*|*Volume*|*Gain*)
-        amixer -c "$card" -q sset "$ctl" 80% 2>/dev/null || true ;;
+      *ADC*) ;;   # recording side (microphone): leave alone
+      EQ1|EQ2|Biquad1|Biquad2) amixer -c "$card" -q sset "$ctl" off 2>/dev/null ;;
+      *Mixer\ IN1|*Mixer\ IN2|*Mixer\ MIC1|*Mixer\ MIC2|*Mixer\ Mono\ DAC2|*Mixer\ Mono\ DAC3) amixer -c "$card" -q sset "$ctl" off 2>/dev/null ;;
+      Left\ *Mixer\ Right\ DAC1|Right\ *Mixer\ Left\ DAC1) amixer -c "$card" -q sset "$ctl" off 2>/dev/null ;;   # no channel crossing
+      Receiver\ Mixer\ *|Lineout\ Mixer\ *|*Lineout\ Mixer\ *) amixer -c "$card" -q sset "$ctl" off 2>/dev/null ;;
     esac
   done
+  set Receiver mute
+  set Lineout mute
+
+  # 2. Straight routing: left DAC -> left amp, right DAC -> right amp (speaker and headphones)
+  set "Left Speaker Mixer Left DAC1"       on
+  set "Right Speaker Mixer Right DAC1"     on
+  set "Left Headphone Mixer Left DAC1"     on
+  set "Right Headphone Mixer Right DAC1"   on
+
+  # 3. Amplifiers: unmuted, moderate. The speaker amp has up to +12 dB: ~40 % is ~0 dB.
+  set Speaker   unmute 40%
+  set Headphone unmute 45%
 done
 
 alsactl store 2>/dev/null || true
