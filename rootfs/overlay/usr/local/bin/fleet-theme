@@ -30,7 +30,13 @@ apply() {
   PS="$HOME/.config/plank/dock1/settings"
   if [ -f "$PS" ]; then
     sed -i "s/^Theme=.*/Theme=$gtk/" "$PS"
-    if pgrep -x plank >/dev/null; then pkill -x plank; (setsid plank >/dev/null 2>&1 &); fi
+    # Restart the dock. Wait until the old one has really exited first: Plank is single-instance, so a new
+    # one started while the old one is still shutting down exits at once and the dock is gone for good.
+    if pgrep -x plank >/dev/null; then
+      pkill -x plank
+      for _ in $(seq 1 30); do pgrep -x plank >/dev/null || break; sleep 0.2; done
+    fi
+    (setsid plank >/dev/null 2>&1 &)
   fi
   mkdir -p "$(dirname "$CUR")" && echo "$id" > "$CUR"
 }

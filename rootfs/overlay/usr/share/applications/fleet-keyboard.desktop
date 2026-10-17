@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Tangentbord och layouter
+Name[en]=Keyboard layouts
+Comment=Valj tangentbordslayout (valfritt sprak)
+Exec=/usr/local/bin/fleet-keyboard
+Icon=input-keyboard
+Categories=Settings;DesktopSettings;

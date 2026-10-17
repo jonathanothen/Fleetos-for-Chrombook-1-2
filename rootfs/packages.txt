@@ -30,6 +30,7 @@ firmware-libertas
 firmware-linux-free
 wireless-regdb
 network-manager
+wpasupplicant
 network-manager-gnome
 bluez
 blueman

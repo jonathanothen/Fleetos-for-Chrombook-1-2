@@ -1,7 +1,7 @@
 #!/bin/bash
 # Applies the FleetOS look the first time a user logs in. Switch later with: fleet-theme  (or "Utseende" in the menu).
 # Bump THEME_VER to re-apply on existing installs after the look changes.
-THEME_VER=3
+THEME_VER=4
 M="$HOME/.config/fleet-look-v$THEME_VER"
 [ -e "$M" ] && exit 0
 sleep 2
@@ -12,7 +12,8 @@ xfconf-query -c xsettings -p /Xft/Antialias       -n -t int    -s 1
 xfconf-query -c xsettings -p /Xft/HintStyle       -n -t string -s "hintslight"
 xfconf-query -c xfwm4 -p /general/button_layout   -n -t string -s "CMH|"
 xfconf-query -c xfwm4 -p /general/title_alignment -n -t string -s "center"
-xfconf-query -c xfwm4 -p /general/use_compositing -n -t bool   -s false
+# Compositor on by default: rounded menus, window shadows. Turn off on a slow machine: fleet-effects off
+xfconf-query -c xfwm4 -p /general/use_compositing -n -t bool   -s true
 
 # Keep a theme the user already picked; otherwise start on the light one
 cur=light

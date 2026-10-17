@@ -1,0 +1,53 @@
+#!/bin/bash
+# Choose keyboard layouts (any layout and variant, up to 3) for the current user. No root needed.
+# Switch between them with Alt+Shift; the panel shows the active one.
+export LANG=${LANG:-C.UTF-8}
+SEP=$'\x1f'
+RULES=/usr/share/X11/xkb/rules/base.lst
+
+Y() { yad --center --title="Keyboard" --window-icon=input-keyboard --separator="$SEP" --borders=16 "$@"; }
+clean() { local v=${1//$SEP/}; echo "${v//|/}"; }
+
+layout_rows()  { awk '/^! layout/{f=1;next} /^!/{f=0} f&&NF{c=$1; $1=""; sub(/^ +/,""); print c; print $0}' "$RULES"; }
+variant_rows() { awk -v l="$1" '/^! variant/{f=1;next} /^!/{f=0}
+                   f&&NF{v=$1; k=$2; sub(/:$/,"",k); if(k==l){$1="";$2="";sub(/^ +/,""); print v; print $0}}' "$RULES"; }
+
+LAYS=(); VARS=()
+pick_layout() {
+  local lay var vrows
+  while true; do
+    lay=$(layout_rows | Y --list --width=560 --height=520 --search-column=2 \
+      --column="Code:HD" --column="Keyboard layout" --print-column=1 \
+      --text="<big><b>Keyboard layout</b></big>\nType to search." --button="Cancel:1" --button="Next:0") || exit 0
+    lay=$(clean "$lay"); [ -n "$lay" ] && break
+  done
+  var=""
+  vrows=$(variant_rows "$lay")
+  if [ -n "$vrows" ]; then
+    var=$( { echo ""; echo "(Standard)"; echo "$vrows"; } | Y --list --width=560 --height=440 --search-column=2 \
+      --column="Code:HD" --column="Variant" --print-column=1 \
+      --text="<big><b>Variant</b></big>" --button="Next:0") || var=""
+    var=$(clean "$var")
+  fi
+  [ "$var" = "(null)" ] && var=""     # yad prints "(null)" for an empty value
+  LAYS+=("$lay"); VARS+=("$var")
+}
+
+pick_layout
+while [ ${#LAYS[@]} -lt 3 ]; do
+  Y --question --text="Add another layout to switch between with <b>Alt+Shift</b>?" \
+    --button="No, apply:1" --button="Add another:0" || break
+  pick_layout
+done
+
+XL=$(IFS=,; echo "${LAYS[*]}"); XV=$(IFS=,; echo "${VARS[*]}")
+XL=${XL//(null)/}; XV=${XV//(null)/}
+[ -n "$XL" ] || exit 0
+
+# Apply now, and remember it for this user (xfsettingsd re-applies it at every login)
+setxkbmap -layout "$XL" -variant "$XV" -option grp:alt_shift_toggle 2>/dev/null
+xfconf-query -c keyboard-layout -p /Default/XkbDisable -n -t bool   -s false
+xfconf-query -c keyboard-layout -p /Default/XkbLayout  -n -t string -s "$XL"
+xfconf-query -c keyboard-layout -p /Default/XkbVariant -n -t string -s "$XV"
+xfconf-query -c keyboard-layout -p /Default/XkbOptions/Group -n -t string -s "grp:alt_shift_toggle"
+Y --info --text="Keyboard layouts set: <b>$XL</b>\nSwitch with Alt+Shift." --button="OK:0"

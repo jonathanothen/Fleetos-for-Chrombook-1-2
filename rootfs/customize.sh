@@ -25,15 +25,13 @@ echo "update_initramfs=no" > /etc/initramfs-tools/update-initramfs.conf   # no i
 apt-get -y install /tmp/linux-image-*.deb
 rm -f /tmp/linux-image-*.deb
 
-# --- Mac-like look: WhiteSur theme + icons (fetched at build time) ---
-git clone --depth 1 https://github.com/vinceliuice/WhiteSur-gtk-theme /tmp/ws-gtk
-git clone --depth 1 https://github.com/vinceliuice/WhiteSur-icon-theme /tmp/ws-icons
-( cd /tmp/ws-gtk && git rev-parse HEAD > /usr/share/fleet-theme-gtk.rev && ./install.sh -d /usr/share/themes -n WhiteSur -c light -c dark 2>&1 | tail -3 ) || true
-# Fail loudly here instead of shipping themes without their WhiteSur base (the line above hides errors)
-[ -d /usr/share/themes/WhiteSur-Light ] || echo "WARN: WhiteSur-Light GTK theme was NOT installed"
-[ -d /usr/share/themes/WhiteSur-Dark ]  || echo "WARN: WhiteSur-Dark GTK theme was NOT installed"
-( cd /tmp/ws-icons && git rev-parse HEAD > /usr/share/fleet-theme-icons.rev && ./install.sh -d /usr/share/icons 2>&1 | tail -3 ) || true
-rm -rf /tmp/ws-gtk /tmp/ws-icons
+# --- Mac-like look: WhiteSur GTK/xfwm4 themes and icons ---
+# They are installed on the build host by rootfs/host-themes.sh (a mmdebstrap hook that runs before this script).
+# Stop here if they are missing: a WhiteSur-less image has no window frames and no base for the FleetOS themes.
+for t in WhiteSur-Light WhiteSur-Dark; do
+  [ -f "/usr/share/themes/$t/gtk-3.0/gtk.css" ] || { echo "ERROR: $t is missing (host-themes.sh failed?)"; exit 1; }
+done
+[ -d /usr/share/icons/WhiteSur ] || { echo "ERROR: icon theme WhiteSur is missing"; exit 1; }
 # FleetOS themes (light, midnatt, solnedgang, mynta, sakura) are generated from small palette files
 chmod +x /usr/local/sbin/fleet-theme-gen /usr/local/bin/fleet-theme
 /usr/local/sbin/fleet-theme-gen

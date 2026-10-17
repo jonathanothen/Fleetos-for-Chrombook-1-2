@@ -1,0 +1,23 @@
+#!/bin/bash
+# Visual effects: rounded menus and window shadows need the compositor. On a very slow machine you can turn
+# them off; menus then become plain solid rectangles (no corner artifacts).
+#   fleet-effects on|off|status
+CSS="$HOME/.config/gtk-3.0/gtk.css"
+MARK="/* fleet-effects: off */"
+case "${1:-status}" in
+  on)
+    xfconf-query -c xfwm4 -p /general/use_compositing -n -t bool -s true
+    [ -f "$CSS" ] && grep -q "$MARK" "$CSS" && rm -f "$CSS"
+    echo "effects on" ;;
+  off)
+    xfconf-query -c xfwm4 -p /general/use_compositing -n -t bool -s false
+    mkdir -p "$(dirname "$CSS")"
+    cat > "$CSS" <<EOF
+$MARK
+window.popup, window.popup.background, window.popup.csd { background-color: @fleet_surface; }
+menu, .menu, popover.background { border-radius: 0; }
+EOF
+    echo "effects off (log out and in, or restart the panel: xfce4-panel -r)" ;;
+  status) echo "compositing: $(xfconf-query -c xfwm4 -p /general/use_compositing 2>/dev/null)" ;;
+  *) echo "usage: fleet-effects on|off|status" >&2; exit 1 ;;
+esac

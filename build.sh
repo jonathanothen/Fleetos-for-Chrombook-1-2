@@ -16,7 +16,8 @@ deps() {
   apt-get install -y mmdebstrap qemu-user-static binfmt-support debian-archive-keyring \
     cgpt vboot-utils vboot-kernel-utils u-boot-tools device-tree-compiler e2fsprogs \
     gcc-arm-linux-gnueabihf build-essential bc flex bison libssl-dev libelf-dev \
-    dpkg-dev debhelper fakeroot kmod cpio rsync xz-utils curl uuid-runtime
+    dpkg-dev debhelper fakeroot kmod cpio rsync xz-utils curl uuid-runtime \
+    git sassc libglib2.0-dev-bin libxml2-utils imagemagick
 }
 
 kernel() {
@@ -34,9 +35,11 @@ rootfs() {
     --components="main contrib non-free non-free-firmware" \
     --include="$(paste -sd, "$HERE/rootfs/packages.txt")" \
     --customize-hook="sync-in '$HERE/rootfs/overlay' /" \
+    --customize-hook="cd '$HERE/rootfs/overlay' && find . -mindepth 1 -print0 | xargs -0 -I{} chown -h root:root \"\$1/{}\"" \
     --customize-hook="copy-in $debs /tmp" \
     --customize-hook="copy-in '$HERE/rootfs/customize.sh' /tmp" \
     --customize-hook='chroot "$1" sh -c "chmod +x /usr/local/sbin/* /usr/local/bin/* /etc/kernel/postinst.d/zz-fleet-kernel"' \
+    --customize-hook="bash '$HERE/rootfs/host-themes.sh' \"\$1\"" \
     --customize-hook='chroot "$1" bash /tmp/customize.sh' \
     "$SUITE" "$ROOTFS" "$MIRROR"
 }

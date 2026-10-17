@@ -35,7 +35,8 @@ echo
 KVER=$(ls /boot | sed -n 's/^vmlinuz-//p' | sort -V | tail -1)
 [ -n "$KVER" ] || fail "no kernel in /boot"
 
-echo "[1/5] Partitioning $TARGET"
+echo "[1/5] Partitioning $TARGET and writing the kernel"
+fleet-usb-boot on >/dev/null 2>&1 || true   # make sure the USB boot flag is on before we touch the disk
 swapoff -a || true
 for p in "${TARGET}"p*; do umount "$p" 2>/dev/null || true; done
 blkdiscard -f "$TARGET" 2>/dev/null || true
@@ -51,9 +52,18 @@ cgpt add -i 3 -t data -b 73728 -s $((TOTAL - 73728 - 64)) -l ROOT-A "$TARGET"
 partprobe "$TARGET"; udevadm settle
 sleep 1
 
+# Write the kernel NOW, before the slow copy. The firmware treats a disk without a valid kernel as "no OS"
+# (recovery), so if the install is interrupted the machine must still have a bootable kernel and the
+# developer screen (Ctrl+U) must keep working. It will wait for the root filesystem until the copy is done.
+ROOTUUID=$(cgpt show -i 3 -u "$TARGET" | tr 'A-Z' 'a-z')
+fleet-mkkernel -v "$KVER" -R "$ROOTUUID" -m detect -o /tmp/kern.bin
+dd if=/tmp/kern.bin of="${TARGET}p1" bs=1M conv=fsync status=none
+dd if=/tmp/kern.bin of="${TARGET}p2" bs=1M conv=fsync status=none
+cgpt add -i 1 -P 2 -T 3 -S 0 "$TARGET"
+cgpt add -i 2 -P 1 -T 3 -S 0 "$TARGET"
+
 echo "[2/5] Creating filesystem"
 mkfs.ext4 -q -F -L fleetroot "${TARGET}p3"
-ROOTUUID=$(cgpt show -i 3 -u "$TARGET" | tr 'A-Z' 'a-z')
 mkdir -p /mnt/target
 mount "${TARGET}p3" /mnt/target
 
@@ -76,12 +86,8 @@ sed -i "s/^127\.0\.1\.1.*/127.0.1.1 $HN/" /mnt/target/etc/hosts
 : > /mnt/target/etc/machine-id
 rm -f /mnt/target/etc/ssh/ssh_host_*
 
-echo "[5/5] Writing kernel (slot A + fallback slot B)"
-fleet-mkkernel -v "$KVER" -R "$ROOTUUID" -m detect -o /tmp/kern.bin
-dd if=/tmp/kern.bin of="${TARGET}p1" bs=1M conv=fsync status=none
-dd if=/tmp/kern.bin of="${TARGET}p2" bs=1M conv=fsync status=none
-cgpt add -i 1 -P 2 -T 3 -S 0 "$TARGET"
-cgpt add -i 2 -P 1 -T 3 -S 0 "$TARGET"
+echo "[5/5] Finishing"
+# (the kernel was already written right after partitioning, see above)
 # Keep USB boot enabled so this machine can be reinstalled later (best effort)
 echo yes > /mnt/target/etc/fleet-usb-boot
 fleet-usb-boot on >/dev/null 2>&1 || true

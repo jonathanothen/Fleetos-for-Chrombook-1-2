@@ -58,6 +58,9 @@ Before the login screen a graphical wizard asks for:
 3. **Allow booting from USB** (needed to reinstall the machine; kept enabled at every boot if chosen).
 4. **Wi-Fi** (network list; skipped with a notice if no adapter is found).
 
+Layouts can be changed later, per user and without root, with **Tangentbord och layouter** in the menu
+(`fleet-keyboard`): any layout and variant, up to three, switched with Alt+Shift.
+
 The user it creates is the administrator (member of `sudo`). root has no password and SSH is installed but
 disabled (`sudo systemctl enable --now ssh`). If the graphical wizard fails, a text-mode wizard takes over, so a
 machine can never be left without a way to log in. To reuse a machine for someone else, reinstall with the stick.
@@ -67,7 +70,11 @@ machine can never be left without a way to log in. To reuse a machine for someon
 Five themes, generated at build time from small palette files in `rootfs/overlay/usr/share/fleet-themes/`
 (`light`, `midnatt` dark, `solnedgang`, `mynta`, `sakura`). Switch with **Utseende** in the menu or
 `fleet-theme set <id>` / `fleet-theme list`. A theme is a GTK CSS layer on top of WhiteSur, a Plank dock theme
-and a flat SVG wallpaper; it also drives the login screen. To add one, copy a `.conf` file and give it a new `ID`,
+and a flat SVG wallpaper; it also drives the login screen. The compositor is on by default (rounded menus, window shadows). It is software-rendered on these machines, so on a
+very slow one you can turn it off with `fleet-effects off` (menus then become plain rectangles; `fleet-effects on`
+restores it). A menu is two nested boxes (popup window + menu): the theme styles only the inner one, otherwise you
+get "double corners".
+To add one, copy a `.conf` file and give it a new `ID`,
 `GTKNAME` and colours (the generator stops the build if a placeholder is missing).
 
 ## Hardware notes (snow)
@@ -110,7 +117,8 @@ panel processes). Attach it to bug reports.
 build.sh, config.env              build driver and settings
 kernel/                           kernel config fragment and cross-build script (with the Wi-Fi patch)
 rootfs/packages.txt               Debian packages
-rootfs/customize.sh               runs in the armhf chroot (themes, services, cleanup)
+rootfs/host-themes.sh             installs WhiteSur themes/icons on the build host (no qemu); fails the build on error
+rootfs/customize.sh               runs in the armhf chroot (FleetOS themes, services, cleanup)
 rootfs/overlay/                   files copied into the image (scripts, units, theme sources, skel)
 .github/workflows/build.yml       GitHub Actions build
 ```

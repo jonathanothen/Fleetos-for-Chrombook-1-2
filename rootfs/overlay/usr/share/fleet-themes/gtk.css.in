@@ -34,8 +34,10 @@
 @define-color link_color              @fleet_accent;
 
 /* ---------- Base ---------- */
-* { outline-color: alpha(@fleet_accent, 0.45); outline-style: solid; outline-width: 2px; outline-offset: -2px; outline-radius: 10px; }
-window, .background { background-color: @fleet_window; color: @fleet_text; }
+* { outline-color: alpha(@fleet_accent, 0.45); outline-style: solid; outline-width: 2px; outline-offset: -2px; -gtk-outline-radius: 10px; }
+/* Only real windows get the window colour. A bare ".background" also matches inner containers, which then
+   paint square corners over their rounded parents (the black "double corners"). */
+window, window.background, dialog.background { background-color: @fleet_window; color: @fleet_text; }
 window.csd, decoration { border-radius: 14px; }
 decoration { box-shadow: 0 8px 28px alpha(black, @@SHADOW@@), 0 0 0 1px alpha(@@OVER@@, 0.08); }
 
@@ -74,6 +76,12 @@ entry, spinbutton, .view, textview {
   border: 1px solid @fleet_line; border-radius: 10px; box-shadow: none; padding: 4px 8px; min-height: 22px;
 }
 textview, textview text, .view { border-radius: 0; border: none; }
+/* The text area itself is the "text" node. Set both colours together so dark themes never end up with
+   light text on a light background (editors such as Mousepad). */
+textview text, .view text, textview.view, iconview, treeview.view {
+  background-color: @fleet_surface; color: @fleet_text;
+}
+textview text selection, .view text selection { background-color: @fleet_accent; color: #FFFFFF; }
 entry:focus, spinbutton:focus { border-color: @fleet_accent; box-shadow: 0 0 0 3px alpha(@fleet_accent, 0.25); outline-style: none; }
 entry:disabled { background-color: alpha(@fleet_surface, 0.6); color: alpha(@fleet_text, 0.4); }
 entry selection { background-color: @fleet_accent; }
@@ -105,9 +113,15 @@ statusbar { color: @fleet_muted; }
 separator { background-color: @fleet_line; min-width: 1px; min-height: 1px; }
 
 /* ---------- Menus & popovers ---------- */
-menu, .menu, .popup, popover, popover.background {
-  background-color: @@MENU@@; color: @fleet_text; border: 1px solid alpha(@@OVER@@, 0.10); border-radius: 12px;
-  box-shadow: 0 10px 32px alpha(black, @@SHADOW@@); padding: 6px;
+/* A menu is two nested boxes: the popup WINDOW and the menu inside it. Style only the inner one (one box, no
+   nesting) and make the window itself invisible. No box-shadow: the window is exactly as big as the menu, so a
+   shadow would be clipped at the edges. Needs the compositor (see "fleet-effects"). */
+window.popup, window.popup.background, window.popup.csd {
+  background-color: transparent; background-image: none; border: none; box-shadow: none; padding: 0; border-radius: 0;
+}
+menu, .menu, popover.background {
+  background-color: @@MENU@@; color: @fleet_text; border: 1px solid alpha(@@OVER@@, 0.14); border-radius: 12px;
+  box-shadow: none; padding: 6px;
 }
 menuitem, modelbutton { border-radius: 7px; padding: 5px 10px; margin: 1px 0; color: @fleet_text; }
 menuitem:hover, modelbutton:hover, menu menuitem:hover { background-color: @fleet_accent; color: #FFFFFF; }
