@@ -58,7 +58,23 @@ image() {
   cgpt add -i 3 -t data   -b "$ROOT_START" -s "$ROOT_SECT" -l ROOT-A -u "$ROOTGUID" "$IMG"
 
   echo "PARTUUID=$ROOTGUID / ext4 defaults,noatime 0 1" > "$ROOTFS/etc/fstab"
-  mke2fs -q -t ext4 -L fleetroot -d "$ROOTFS" -E offset=$(( ROOT_START * 512 )) "$IMG" "${ROOT_MIB}M"
+  # Build the root filesystem as a separate file via a real loop mount (mke2fs -d has bugs with large
+  # directories: "checksumming directory block 0" errors seen on the first images), verify it with
+  # e2fsck, then write it into the image at the partition offset.
+  local RFS="$WORK_DIR/root.ext4"
+  rm -f "$RFS"; truncate -s "${ROOT_MIB}M" "$RFS"
+  mkfs.ext4 -q -F -L fleetroot "$RFS"
+  mkdir -p "$WORK_DIR/mnt"
+  if mount -o loop "$RFS" "$WORK_DIR/mnt"; then
+    rsync -aHAX --numeric-ids "$ROOTFS"/ "$WORK_DIR/mnt"/
+    sync; umount "$WORK_DIR/mnt"
+  else
+    echo "WARNING: loop mount failed, falling back to mke2fs -d"
+    mke2fs -q -t ext4 -F -L fleetroot -d "$ROOTFS" "$RFS"
+  fi
+  e2fsck -fn "$RFS" || { echo "ERROR: root filesystem failed e2fsck, refusing to build the image"; exit 1; }
+  dd if="$RFS" of="$IMG" bs=1M seek=$(( ROOT_START * 512 / 1048576 )) conv=notrunc status=none
+  rm -f "$RFS"
 
   bash "$HERE/rootfs/overlay/usr/local/sbin/fleet-mkkernel" -r "$ROOTFS" -v "$KVER" \
     -R "$ROOTGUID" -m "$USB_MODEL" -c "fleet_install=1" -o "$WORK_DIR/kern-usb.bin"
