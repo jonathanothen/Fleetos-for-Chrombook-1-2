@@ -1,5 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Dock
-Exec=plank
+# Guard against two docks: the plank package may ship its own autostart entry.
+Exec=sh -c "sleep 2; pgrep -x plank >/dev/null || exec plank"
 OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true

@@ -1,0 +1,89 @@
+#!/bin/bash
+# FleetOS first-boot setup wizard. Started by fleet-setup.service inside a temporary X server (as root),
+# before the login screen. Asks for language, keyboard, user account, computer name and Wi-Fi.
+# There is no built-in account, so the wizard is the only way to create the first (admin) user.
+# If it is cancelled or crashes, fleet-setup restarts it and finally falls back to a text-mode wizard.
+export LANG=C.UTF-8 NO_AT_BRIDGE=1 GDK_BACKEND=x11
+SEP=$'\x1f'
+a=$'å'; ae=$'ä'; oe=$'ö'; AE=$'Ä'
+
+openbox >/dev/null 2>&1 &
+sleep 1
+
+Y() { yad --center --title="FleetOS" --window-icon=preferences-system --separator="$SEP" "$@"; }
+
+# --- 1. Language and keyboard --------------------------------------------------------------------------
+res=$(Y --width=440 --form \
+  --text="<big><b>Welcome / V${ae}lkommen</b></big>\n\nChoose language and keyboard layout.\nV${ae}lj spr${a}k och tangentbord." \
+  --field="Language / Spr${a}k:CB" "Svenska!English" \
+  --field="Keyboard / Tangentbord:CB" "Svenska (se)!Norsk (no)!Dansk (dk)!Suomi (fi)" \
+  --button="Next / N${ae}sta:0") || exit 1
+IFS="$SEP" read -r LANGSEL KBSEL _ <<<"$res"
+
+case "$LANGSEL" in English*) LOC=en_US.UTF-8;; *) LOC=sv_SE.UTF-8;; esac
+case "$KBSEL" in Norsk*) KB=no;; Dansk*) KB=dk;; Suomi*) KB=fi;; *) KB=se;; esac
+setxkbmap "$KB" 2>/dev/null || true
+
+# --- 2. Account ----------------------------------------------------------------------------------------
+while true; do
+  res=$(Y --width=480 --form \
+    --text="<big><b>Account / Anv${ae}ndare</b></big>\n\nCreate your user account.\nSkapa ditt anv${ae}ndarkonto." \
+    --field="Full name / Namn" "" \
+    --field="Username / Anv${ae}ndarnamn" "" \
+    --field="Password / L${oe}senord:H" "" \
+    --field="Repeat password / Upprepa l${oe}senord:H" "" \
+    --field="Computer name / Datornamn" "$(cat /etc/hostname)" \
+    --button="Next / N${ae}sta:0") || exit 1
+  IFS="$SEP" read -r FULL USERN PW1 PW2 HOST _ <<<"$res"
+  FULL=${FULL//[:,]/}
+  err=""
+  [[ $USERN =~ ^[a-z][a-z0-9_-]{1,30}$ ]] || err="Username: a-z, 0-9, - and _, starting with a letter. / Anv${ae}ndarnamn: sm${a} bokst${a}ver (a-z), siffror, - och _."
+  id "$USERN" >/dev/null 2>&1 && err="That username already exists. / Anv${ae}ndarnamnet finns redan."
+  [ "$PW1" = "$PW2" ] || err="Passwords do not match. / L${oe}senorden st${ae}mmer inte."
+  [ ${#PW1} -ge 4 ] || err="Password too short (min 4). / L${oe}senordet ${ae}r f${oe}r kort (minst 4)."
+  [[ $HOST =~ ^[A-Za-z0-9-]{1,40}$ ]] || err="Computer name: letters, digits and - only. / Datornamn: bara bokst${a}ver, siffror och -."
+  if [ -n "$err" ]; then Y --error --text="$err" --button="OK:0"; continue; fi
+  break
+done
+
+# --- 3. Wi-Fi (optional) -------------------------------------------------------------------------------
+if command -v nmcli >/dev/null && nmcli -t -f TYPE device | grep -q '^wifi'; then
+  nmcli radio wifi on >/dev/null 2>&1
+  for _ in 1 2 3; do nmcli device wifi rescan >/dev/null 2>&1; sleep 2; done
+  while true; do
+    SSIDS=$(nmcli -t -f SSID device wifi list 2>/dev/null | sed 's/\\:/:/g' | tr -d '!' | awk 'NF' | sort -u | paste -sd'!')
+    res=$(Y --width=480 --form \
+      --text="<big><b>Wi-Fi</b></big>\n\nChoose a network (or skip). / V${ae}lj n${ae}tverk (eller hoppa ${oe}ver)." \
+      --field="Network / N${ae}tverk:CBE" "$SSIDS" \
+      --field="Password / L${oe}senord:H" "" \
+      --button="Skip / Hoppa ${oe}ver:1" --button="Connect / Anslut:0") || break
+    IFS="$SEP" read -r SSID WPW _ <<<"$res"
+    [ -n "$SSID" ] || break
+    if [ -n "$WPW" ]; then nmcli device wifi connect "$SSID" password "$WPW" >/dev/null 2>&1
+    else nmcli device wifi connect "$SSID" >/dev/null 2>&1; fi
+    if [ $? -eq 0 ]; then
+      Y --info --text="Connected to $SSID. / Ansluten till $SSID." --button="OK:0"; break
+    fi
+    Y --question --text="Could not connect. Try again? / Kunde inte ansluta. F${oe}rs${oe}k igen?" \
+      --button="Retry / F${oe}rs${oe}k igen:0" --button="Skip / Hoppa ${oe}ver:1" || break
+  done
+fi
+
+# --- Apply ---------------------------------------------------------------------------------------------
+(
+  echo "# Applying settings / Till${ae}mpar inst${ae}llningar..."
+  update-locale LANG="$LOC"
+  layouts="$KB"; for l in se no dk fi; do [ "$l" = "$KB" ] || layouts="$layouts,$l"; done
+  sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"$layouts\"/" /etc/default/keyboard
+  echo "$HOST" > /etc/hostname
+  sed -i "s/^127\.0\.1\.1.*/127.0.1.1 $HOST/" /etc/hosts
+  hostname "$HOST"
+  useradd -m -s /bin/bash -c "$FULL" -G sudo,audio,video,plugdev,netdev "$USERN"
+  echo "$USERN:$PW1" | chpasswd
+  rm -f /etc/fleet-needs-setup
+  sync
+) | Y --progress --pulsate --auto-close --no-buttons --width=380 --text="Please wait... / V${ae}nta..."
+
+Y --info --width=380 --text="<big><b>Done / Klart</b></big>\n\nThe computer restarts now.\nDatorn startar om." --button="OK:0"
+systemctl --no-block reboot
+exit 0

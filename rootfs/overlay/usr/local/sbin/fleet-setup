@@ -1,0 +1,9 @@
+#!/bin/bash
+# Started by fleet-setup.service before the login screen. There is no built-in user account, so this must
+# not give up: graphical wizard (3 tries), then a text-mode wizard on the console.
+for i in 1 2 3; do
+  /usr/bin/xinit /usr/local/sbin/fleet-setup-gui -- /usr/bin/Xorg :20 vt7 -nolisten tcp -quiet
+  [ -e /etc/fleet-needs-setup ] || exit 0
+  sleep 2
+done
+exec /usr/local/sbin/fleet-setup-text

@@ -7,13 +7,22 @@ One USB stick wipes the internal eMMC and installs the system. No dual boot.
 ## 1. Build (no Linux needed: GitHub Actions)
 
 1. Create a private GitHub repo and push this folder to it.
-2. Settings -> Secrets and variables -> Actions -> New secret:
-   - `FLEET_PASSWORD` (required: password for the user `anv`)
-   - `FLEET_SSH_KEY` (optional: your public SSH key for remote admin)
+2. No secrets or passwords are needed: the image contains **no user account**. The first-boot wizard
+   lets the owner create their own user (see "First boot" below).
 3. Actions -> "Build FleetOS USB image" -> Run workflow (usb_model = `auto`).
 4. Download the artifact `fleetos-usb-auto` (a `.img.xz`, about 1.5 GB).
 
-Local build alternative (Debian/Ubuntu or WSL2): `sudo FLEET_PASSWORD=... ./build.sh deps && sudo FLEET_PASSWORD=... ./build.sh all`
+Local build alternative (Debian/Ubuntu or WSL2): `sudo ./build.sh deps && sudo ./build.sh all`
+
+## First boot
+
+On the first start of an installed machine a graphical wizard (before the login screen) asks for language,
+keyboard (se/no/dk/fi), name, username, password, computer name and Wi-Fi. The user it creates is the
+administrator (member of `sudo`). There is no built-in or shared account, root has no password, and SSH is
+installed but disabled. If the graphical wizard cannot run, a text-mode wizard takes over, so a machine can
+never be left without a way to log in. This makes the machines safe to hand over or resell.
+
+To reuse a machine for someone else: reinstall with the stick (it wipes the disk) and the wizard runs again.
 
 ## 2. Write the stick (Windows)
 

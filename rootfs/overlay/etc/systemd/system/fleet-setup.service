@@ -1,0 +1,15 @@
+[Unit]
+Description=FleetOS first-boot setup wizard (graphical)
+ConditionPathExists=/etc/fleet-needs-setup
+ConditionKernelCommandLine=!fleet_install=1
+After=systemd-user-sessions.service systemd-logind.service NetworkManager.service fleet-firstboot.service
+Before=lightdm.service display-manager.service
+
+[Service]
+Type=oneshot
+Environment=HOME=/root LANG=C.UTF-8
+ExecStart=/usr/local/sbin/fleet-setup
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=graphical.target

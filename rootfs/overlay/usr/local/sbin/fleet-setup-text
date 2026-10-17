@@ -1,0 +1,33 @@
+#!/bin/bash
+# Text-mode fallback of the first-boot wizard (used if the graphical one cannot run).
+exec </dev/tty1 >/dev/tty1 2>&1
+chvt 1 2>/dev/null || true
+export LANG=C.UTF-8
+clear
+echo "=============================================="
+echo "  FleetOS first-boot setup (text mode)"
+echo "=============================================="
+while true; do
+  read -r -p "Username (a-z, 0-9): " USERN
+  [[ $USERN =~ ^[a-z][a-z0-9_-]{1,30}$ ]] || { echo "Invalid username."; continue; }
+  id "$USERN" >/dev/null 2>&1 && { echo "That username already exists."; continue; }
+  read -r -s -p "Password: " PW1; echo
+  read -r -s -p "Repeat password: " PW2; echo
+  [ "$PW1" = "$PW2" ] || { echo "Passwords do not match."; continue; }
+  [ ${#PW1} -ge 4 ] || { echo "Password too short (min 4)."; continue; }
+  break
+done
+read -r -p "Computer name [$(cat /etc/hostname)]: " HOST
+HOST=${HOST:-$(cat /etc/hostname)}
+[[ $HOST =~ ^[A-Za-z0-9-]{1,40}$ ]] || HOST=$(cat /etc/hostname)
+
+update-locale LANG=sv_SE.UTF-8
+echo "$HOST" > /etc/hostname
+sed -i "s/^127\.0\.1\.1.*/127.0.1.1 $HOST/" /etc/hosts
+useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev "$USERN"
+echo "$USERN:$PW1" | chpasswd
+rm -f /etc/fleet-needs-setup
+sync
+echo "Done. Restarting..."
+sleep 2
+systemctl --no-block reboot

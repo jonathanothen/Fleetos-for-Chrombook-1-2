@@ -1,12 +1,11 @@
 #!/bin/bash
 # Builds the FleetOS USB installer image. Run as root on Debian/Ubuntu.
-#   sudo FLEET_PASSWORD='...' ./build.sh [deps|kernel|rootfs|image|all]
+#   sudo ./build.sh [deps|kernel|rootfs|image|all]
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/config.env"
 STEP="${1:-all}"
 [ "$(id -u)" = 0 ] || { echo "Run as root (sudo)."; exit 1; }
-: "${FLEET_PASSWORD:?Set FLEET_PASSWORD (password for user $FLEET_USER)}"
 
 ROOTFS="$WORK_DIR/rootfs"
 mkdir -p "$OUT_DIR" "$WORK_DIR"
@@ -30,23 +29,16 @@ kernel() {
 
 rootfs() {
   rm -rf "$ROOTFS"
-  cat > "$WORK_DIR/fleet-build.env" <<EOF
-FLEET_USER='$FLEET_USER'
-FLEET_PASSWORD='$FLEET_PASSWORD'
-FLEET_SSH_KEY='${FLEET_SSH_KEY:-}'
-EOF
-  chmod 600 "$WORK_DIR/fleet-build.env"
   local debs; debs=$(ls "$OUT_DIR"/kernel/linux-image-*.deb)
   mmdebstrap --arch=armhf --variant=minbase \
     --components="main contrib non-free non-free-firmware" \
     --include="$(paste -sd, "$HERE/rootfs/packages.txt")" \
     --customize-hook="sync-in '$HERE/rootfs/overlay' /" \
     --customize-hook="copy-in $debs /tmp" \
-    --customize-hook="copy-in '$WORK_DIR/fleet-build.env' '$HERE/rootfs/customize.sh' /tmp" \
+    --customize-hook="copy-in '$HERE/rootfs/customize.sh' /tmp" \
     --customize-hook='chroot "$1" sh -c "chmod +x /usr/local/sbin/* /usr/local/bin/* /etc/kernel/postinst.d/zz-fleet-kernel"' \
     --customize-hook='chroot "$1" bash /tmp/customize.sh' \
     "$SUITE" "$ROOTFS" "$MIRROR"
-  rm -f "$ROOTFS/tmp/fleet-build.env"
 }
 
 image() {

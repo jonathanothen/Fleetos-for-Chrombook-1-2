@@ -45,6 +45,10 @@ xfce4-settings
 xfdesktop4
 xfce4-terminal
 xfce4-power-manager
+xfce4-power-manager-plugins
+yad
+xinit
+openbox
 xfce4-notifyd
 xfce4-pulseaudio-plugin
 xfce4-whiskermenu-plugin

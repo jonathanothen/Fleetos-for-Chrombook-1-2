@@ -22,14 +22,12 @@ jobs:
           key: kernel-${{ inputs.kernel_version }}-${{ hashFiles('kernel/fleet.config', 'kernel/build-kernel.sh') }}
       - name: Build
         env:
-          FLEET_PASSWORD: ${{ secrets.FLEET_PASSWORD }}
-          FLEET_SSH_KEY: ${{ secrets.FLEET_SSH_KEY }}
           USB_MODEL: ${{ inputs.usb_model }}
           KERNEL_VERSION: ${{ inputs.kernel_version }}
         run: |
           chmod +x build.sh kernel/build-kernel.sh
-          sudo --preserve-env=FLEET_PASSWORD,FLEET_SSH_KEY,USB_MODEL,KERNEL_VERSION ./build.sh deps
-          sudo --preserve-env=FLEET_PASSWORD,FLEET_SSH_KEY,USB_MODEL,KERNEL_VERSION ./build.sh all
+          sudo --preserve-env=USB_MODEL,KERNEL_VERSION ./build.sh deps
+          sudo --preserve-env=USB_MODEL,KERNEL_VERSION ./build.sh all
       - name: Save kernel cache (even if a later step failed)
         if: always() && steps.kcache.outputs.cache-hit != 'true' && hashFiles('out/kernel/*.deb') != ''
         uses: actions/cache/save@v4

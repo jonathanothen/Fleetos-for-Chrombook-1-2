@@ -2,7 +2,6 @@
 # Runs INSIDE the armhf chroot after the packages are installed.
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
-source /tmp/fleet-build.env   # FLEET_USER, FLEET_PASSWORD, FLEET_SSH_KEY
 
 # --- Locale, time, keyboard (Swedish default; Nordic layouts switchable) ---
 sed -i 's/^# *sv_SE.UTF-8/sv_SE.UTF-8/; s/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
@@ -13,15 +12,9 @@ echo Europe/Stockholm > /etc/timezone
 # /etc/default/keyboard comes from the overlay; apply to the console
 setupcon --save-only 2>/dev/null || true
 
-# --- User ---
-useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev "$FLEET_USER"
-echo "$FLEET_USER:$FLEET_PASSWORD" | chpasswd
-if [ -n "${FLEET_SSH_KEY:-}" ]; then
-  install -d -m 700 -o "$FLEET_USER" -g "$FLEET_USER" "/home/$FLEET_USER/.ssh"
-  echo "$FLEET_SSH_KEY" > "/home/$FLEET_USER/.ssh/authorized_keys"
-  chown "$FLEET_USER:$FLEET_USER" "/home/$FLEET_USER/.ssh/authorized_keys"
-  chmod 600 "/home/$FLEET_USER/.ssh/authorized_keys"
-fi
+# --- Users ---
+# No built-in account and no shared password. The first user is created by the
+# first-boot wizard (fleet-setup.service). root has no password (locked).
 echo "fleet" > /etc/hostname
 echo "127.0.1.1 fleet" >> /etc/hosts
 
@@ -40,7 +33,11 @@ git clone --depth 1 https://github.com/vinceliuice/WhiteSur-icon-theme /tmp/ws-i
 rm -rf /tmp/ws-gtk /tmp/ws-icons
 
 # --- Services ---
-for s in lightdm NetworkManager ssh fleet-firstboot.service fleet-mark-good.service fleet-installer.service zramswap; do
+# First-boot wizard: runs on the installed machine, not on the install stick (see fleet-setup.service)
+touch /etc/fleet-needs-setup
+# ssh is installed but NOT enabled: no remote access until the owner turns it on
+# (sudo systemctl enable --now ssh).
+for s in lightdm NetworkManager fleet-firstboot.service fleet-mark-good.service fleet-installer.service fleet-setup.service fleet-installer-shell.service zramswap; do
   systemctl enable "$s" || echo "WARN: could not enable $s"
 done
 systemctl set-default graphical.target
