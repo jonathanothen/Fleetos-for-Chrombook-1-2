@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Network applet
+# Make sure the Wi-Fi/network icon appears in the panel (one instance only).
+Exec=sh -c "sleep 3; pgrep -x nm-applet >/dev/null || exec nm-applet"
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true

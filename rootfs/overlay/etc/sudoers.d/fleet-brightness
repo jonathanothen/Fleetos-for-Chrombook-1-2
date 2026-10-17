@@ -1,0 +1,3 @@
+# Members of the video group may change the screen brightness without a password
+# (used by the brightness keys when the backlight file is not writable by the user).
+%video ALL=(root) NOPASSWD: /usr/bin/brightnessctl

@@ -40,6 +40,11 @@ touch /etc/fleet-needs-setup
 for s in lightdm NetworkManager fleet-firstboot.service fleet-mark-good.service fleet-installer.service fleet-setup.service fleet-installer-shell.service fleet-usb-boot.service fleet-audio-init.service zramswap; do
   systemctl enable "$s" || echo "WARN: could not enable $s"
 done
+# sudoers drop-ins must be mode 0440 and valid, or sudo ignores them
+chmod 0440 /etc/sudoers.d/fleet-brightness
+visudo -cf /etc/sudoers.d/fleet-brightness
+# Debian enables ssh automatically when openssh-server is installed; turn it off explicitly.
+systemctl disable ssh.service ssh.socket 2>/dev/null || true
 systemctl set-default graphical.target
 # SSH host keys and machine-id must be unique per machine -> created at first boot
 rm -f /etc/ssh/ssh_host_*

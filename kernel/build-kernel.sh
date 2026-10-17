@@ -20,6 +20,14 @@ rm -rf "linux-${KERNEL_VERSION}"
 tar xf "$TARBALL"
 cd "linux-${KERNEL_VERSION}"
 
+# Local patch: mwifiex treats ANY failed command during init as fatal. The Marvell 8797 firmware answers
+# CHAN_REGION_CFG (0x242) with "not supported" (result 0x2), so init aborts and no wlan0 appears.
+# Make that single command non-fatal.
+perl -0pi -e 's|(\t/\* Check init command response \*/\n)|\t/* FleetOS patch: sd8797 firmware does not support CHAN_REGION_CFG; not fatal. */\n\tif (ret \&\& cmdresp_no == HostCmd_CMD_CHAN_REGION_CFG)\n\t\tret = 0;\n\n$1|' \
+  drivers/net/wireless/marvell/mwifiex/cmdevt.c
+grep -q "FleetOS patch" drivers/net/wireless/marvell/mwifiex/cmdevt.c \
+  || { echo "ERROR: mwifiex patch did not apply (kernel source changed?)"; exit 1; }
+
 export ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-
 # exynos_defconfig (not multi_v7): the old ChromeOS firmware only loads a small kernel.
 # The Kali Exynos image that boots on these machines has a 4.4 MB kernel.

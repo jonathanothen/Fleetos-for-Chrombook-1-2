@@ -3,8 +3,9 @@
 <channel name="xfce4-keyboard-shortcuts" version="1.0">
   <property name="commands" type="empty">
     <property name="custom" type="empty">
-      <property name="XF86MonBrightnessUp" type="string" value="brightnessctl set +10%"/>
-      <property name="XF86MonBrightnessDown" type="string" value="brightnessctl set 10%-"/>
+      <!-- The backlight has only 8 steps (0-7): fleet-brightness steps one level and never goes to 0 -->
+      <property name="XF86MonBrightnessUp" type="string" value="fleet-brightness up"/>
+      <property name="XF86MonBrightnessDown" type="string" value="fleet-brightness down"/>
       <property name="override" type="bool" value="true"/>
     </property>
   </property>

@@ -17,7 +17,9 @@ for card in $(sed -n 's/^ *\([0-9]\+\) \[.*/\1/p' /proc/asound/cards); do
     esac
     amixer -c "$card" -q sset "$ctl" unmute 2>/dev/null || true
     case "$ctl" in
-      Speaker*|Headphone*|Master*|PCM*|DAC*|Digital*|Playback*|Output*)
+      *Speaker*|*Headphone*|*Receiver*)   # output amplifiers: keep moderate, 80% is painfully loud
+        amixer -c "$card" -q sset "$ctl" 45% 2>/dev/null || true ;;
+      *Playback*|*Master*|*PCM*|*DAC*|*DAI*|*Digital*|*Output*|*Volume*|*Gain*)
         amixer -c "$card" -q sset "$ctl" 80% 2>/dev/null || true ;;
     esac
   done

@@ -1,0 +1,29 @@
+#!/bin/bash
+# Collects hardware/service diagnostics into one file you can paste in a bug report.
+# Usage: sudo fleet-diag     (writes /tmp/fleet-diag.txt; copy it to a USB stick or read it on screen)
+OUT=/tmp/fleet-diag.txt
+section() { { echo; echo "===== $* ====="; } >> "$OUT"; }
+run() { section "$*"; { eval "$*" 2>&1 | head -${LINES_MAX:-60}; } >> "$OUT"; }
+: > "$OUT"
+echo "FleetOS diagnostics $(date)" >> "$OUT"
+run 'uname -a; cat /proc/device-tree/model; echo; tr "\0" " " < /proc/device-tree/compatible'
+run 'systemctl --failed --no-legend'
+section "Wi-Fi"
+run 'ls /sys/class/net; nmcli device; rfkill list'
+run 'ls -l /usr/lib/firmware/mrvl/ | head -20'
+run 'dmesg | grep -i -E "mwifiex|mrvl|sdio|mmc2|firmware" | tail -25'
+section "Sound"
+run 'cat /proc/asound/cards; aplay -l'
+LINES_MAX=90 run 'amixer -c 0 scontrols'
+LINES_MAX=40 run 'amixer -c 0 sget Speaker; amixer -c 0 sget Headphone'
+run 'wpctl status 2>/dev/null | head -40 || pactl list short sinks'
+run 'cat /var/lib/fleet-audio-init.done 2>&1; ls -l /var/lib/fleet-audio-init.done'
+section "Backlight and battery"
+run 'ls -l /sys/class/backlight/; for d in /sys/class/backlight/*; do echo $d; cat $d/max_brightness $d/brightness $d/actual_brightness $d/bl_power 2>&1; done'
+run 'for d in /sys/class/power_supply/*; do echo "== $d"; cat $d/uevent; done'
+run 'upower -d 2>&1 | head -50'
+run 'dmesg | grep -i -E "backlight|pwm|panel|tps65090|sbs|battery" | tail -25'
+section "Panel and applets"
+run 'pgrep -a -f "plank|nm-applet|xfce4-power-manager|xfce4-panel|pipewire|wireplumber"'
+run 'systemctl status NetworkManager --no-pager | head -15'
+echo "Wrote $OUT ($(wc -l < "$OUT") lines). Copy it to a USB stick (file manager) or: less $OUT"

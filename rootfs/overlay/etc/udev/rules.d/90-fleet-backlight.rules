@@ -1,0 +1,2 @@
+# Let the video group change the backlight (works for logged-in users who are members of "video").
+SUBSYSTEM=="backlight", ACTION=="add|change", RUN+="/bin/sh -c 'chgrp video /sys/class/backlight/%k/brightness; chmod g+w /sys/class/backlight/%k/brightness'"

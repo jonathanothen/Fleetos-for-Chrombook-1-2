@@ -48,6 +48,8 @@ xfce4-terminal
 xfce4-power-manager
 xfce4-power-manager-plugins
 yad
+upower
+rtkit
 alsa-utils
 pipewire-alsa
 brightnessctl

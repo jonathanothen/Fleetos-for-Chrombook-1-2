@@ -40,9 +40,10 @@ swapoff -a || true
 for p in "${TARGET}"p*; do umount "$p" 2>/dev/null || true; done
 blkdiscard -f "$TARGET" 2>/dev/null || true
 wipefs -a "$TARGET" >/dev/null
-cgpt create -z "$TARGET"
-cgpt create "$TARGET"
-cgpt boot -p "$TARGET"   # protective MBR: Linux ignores GPT disks without it
+# The disk is blank here, so cgpt prints harmless "GPT header is invalid" warnings: hide them.
+cgpt create -z "$TARGET" >/dev/null 2>&1
+cgpt create "$TARGET" >/dev/null 2>&1
+cgpt boot -p "$TARGET" >/dev/null 2>&1   # protective MBR: Linux ignores GPT disks without it
 cgpt add -i 1 -t kernel -b 8192   -s 32768 -l KERN-A -S 0 -T 0 -P 0 "$TARGET"
 cgpt add -i 2 -t kernel -b 40960  -s 32768 -l KERN-B -S 0 -T 0 -P 0 "$TARGET"
 TOTAL=$(blockdev --getsz "$TARGET")

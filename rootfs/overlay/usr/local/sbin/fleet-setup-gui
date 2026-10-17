@@ -132,6 +132,8 @@ pick_layout() {
       --text="<big><b>Keyboard variant</b></big>" --button="Next:0") || var=""
     var=$(clean "$var")
   fi
+  # yad prints the literal text "(null)" for an empty value; that must never reach /etc/default/keyboard
+  [ "$var" = "(null)" ] && var=""
   LAYS+=("$lay"); VARS+=("$var")
 }
 pick_layout
@@ -141,6 +143,8 @@ while [ ${#LAYS[@]} -lt 3 ]; do
   pick_layout
 done
 XL=$(IFS=,; echo "${LAYS[*]}"); XV=$(IFS=,; echo "${VARS[*]}")
+XL=${XL//(null)/}; XV=${XV//(null)/}   # belt and braces
+[ -n "$XL" ] || XL=us
 setxkbmap -layout "$XL" -variant "$XV" 2>/dev/null || true
 
 # --- 3. Account ----------------------------------------------------------------------------------------
@@ -186,22 +190,39 @@ done
 [ -n "$FULL" ] || FULL=$USERN
 
 # --- 4. Wi-Fi (optional) -------------------------------------------------------------------------------
-if command -v nmcli >/dev/null && nmcli -t -f TYPE device | grep -q '^wifi'; then
+if ! command -v nmcli >/dev/null || ! nmcli -t -f TYPE device | grep -q '^wifi'; then
+  Y --info --width=520 --text="<big><b>Wi-Fi</b></big>\n\nNo Wi-Fi adapter was found, so this step is skipped.\nYou can use a network cable, or set up Wi-Fi later." --button="Continue:0"
+else
   nmcli radio wifi on >/dev/null 2>&1
-  for _ in 1 2 3; do nmcli device wifi rescan >/dev/null 2>&1; sleep 2; done
   while true; do
-    SSIDS=$(nmcli -t -f SSID device wifi list 2>/dev/null | sed 's/\\:/:/g' | tr -d '!' | awk 'NF' | sort -u | paste -sd'!')
-    res=$(Y --form --width=520 \
-      --text="<big><b>Wi-Fi</b></big>\n\nChoose a network, or skip." \
-      --field="Network:CBE" "$SSIDS" \
-      --field="Password:H" "" \
-      --button="Skip:1" --button="Connect:0") || break
-    IFS="$SEP" read -r SSID WPW _ <<<"$res"
-    [ -n "$SSID" ] || break
-    if [ -n "$WPW" ]; then nmcli device wifi connect "$SSID" password "$WPW" >/dev/null 2>&1
-    else nmcli device wifi connect "$SSID" >/dev/null 2>&1; fi
-    if [ $? -eq 0 ]; then Y --info --text="Connected to $SSID." --button="OK:0"; break; fi
-    Y --question --text="Could not connect. Try again?" --button="Skip:1" --button="Try again:0" || break
+    for _ in 1 2; do nmcli device wifi rescan >/dev/null 2>&1; sleep 2; done
+    rows=$(nmcli -t -f SIGNAL,SECURITY,SSID device wifi list 2>/dev/null | sort -t: -k1,1nr | awk -F: '
+        { sig=$1; sec=$2; ssid=$0; sub(/^[^:]*:[^:]*:/,"",ssid); gsub(/\\:/,":",ssid);
+          if (ssid!="" && !(ssid in seen)) { seen[ssid]=1; print sig; print (sec==""?"Open":sec); print ssid } }')
+    sel=$( { echo ""; echo ""; echo "Other / hidden network..."; [ -n "$rows" ] && echo "$rows"; } | \
+        Y --list --width=640 --height=480 --search-column=3 \
+          --column="Signal %" --column="Security" --column="Network" --print-column=3 \
+          --text="<big><b>Wi-Fi</b></big>\n\nChoose your network. Type to search." \
+          --button="Skip:1" --button="Rescan:2" --button="Connect:0")
+    rc=$?
+    [ $rc -eq 2 ] && continue
+    [ $rc -eq 0 ] || break
+    SSID=$(clean "$sel"); [ -n "$SSID" ] || continue
+    args=()
+    if [ "$SSID" = "Other / hidden network..." ]; then
+      SSID=$(Y --entry --width=480 --text="Network name (SSID)" --button="Back:1" --button="Next:0") || continue
+      SSID=$(clean "$SSID"); [ -n "$SSID" ] || continue
+      args+=(hidden yes)
+    fi
+    ESC=$(printf '%s' "$SSID" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+    WPW=$(Y --entry --hide-text --width=480 --text="Password for <b>$ESC</b>\n(leave empty for an open network)" \
+          --button="Back:1" --button="Connect:0") || continue
+    WPW=$(clean "$WPW")
+    [ -n "$WPW" ] && args+=(password "$WPW")
+    if nmcli device wifi connect "$SSID" "${args[@]}" >/dev/null 2>&1; then
+      Y --info --text="Connected to <b>$ESC</b>." --button="OK:0"; break
+    fi
+    Y --question --text="Could not connect to <b>$ESC</b>. Try again?" --button="Skip:1" --button="Try again:0" || break
   done
 fi
 
