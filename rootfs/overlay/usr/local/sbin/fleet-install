@@ -81,6 +81,9 @@ dd if=/tmp/kern.bin of="${TARGET}p1" bs=1M conv=fsync status=none
 dd if=/tmp/kern.bin of="${TARGET}p2" bs=1M conv=fsync status=none
 cgpt add -i 1 -P 2 -T 3 -S 0 "$TARGET"
 cgpt add -i 2 -P 1 -T 3 -S 0 "$TARGET"
+# Keep USB boot enabled so this machine can be reinstalled later (best effort)
+echo yes > /mnt/target/etc/fleet-usb-boot
+fleet-usb-boot on >/dev/null 2>&1 || true
 
 sync
 umount /mnt/target

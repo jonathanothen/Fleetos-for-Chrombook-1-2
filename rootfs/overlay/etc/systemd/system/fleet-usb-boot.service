@@ -1,0 +1,11 @@
+[Unit]
+Description=Keep USB boot enabled in firmware (if chosen in the setup wizard)
+ConditionPathExists=/etc/fleet-usb-boot
+ConditionKernelCommandLine=!fleet_install=1
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/fleet-usb-boot ensure
+
+[Install]
+WantedBy=multi-user.target

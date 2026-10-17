@@ -37,7 +37,7 @@ rm -rf /tmp/ws-gtk /tmp/ws-icons
 touch /etc/fleet-needs-setup
 # ssh is installed but NOT enabled: no remote access until the owner turns it on
 # (sudo systemctl enable --now ssh).
-for s in lightdm NetworkManager fleet-firstboot.service fleet-mark-good.service fleet-installer.service fleet-setup.service fleet-installer-shell.service zramswap; do
+for s in lightdm NetworkManager fleet-firstboot.service fleet-mark-good.service fleet-installer.service fleet-setup.service fleet-installer-shell.service fleet-usb-boot.service fleet-audio-init.service zramswap; do
   systemctl enable "$s" || echo "WARN: could not enable $s"
 done
 systemctl set-default graphical.target

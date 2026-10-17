@@ -39,7 +39,9 @@
       <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
       <property name="show-notifications" type="bool" value="true"/>
     </property>
-    <property name="plugin-6" type="string" value="power-manager-plugin"/>
+    <property name="plugin-6" type="string" value="power-manager-plugin">
+      <property name="show-panel-label" type="int" value="1"/>
+    </property>
     <property name="plugin-7" type="string" value="xkb"/>
     <property name="plugin-8" type="string" value="clock">
       <property name="digital-format" type="string" value="%a %e %b  %H:%M"/>

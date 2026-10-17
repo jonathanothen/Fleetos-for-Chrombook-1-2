@@ -1,0 +1,12 @@
+#!/bin/bash
+# Manage the firmware flag that allows booting from USB (Ctrl+U in developer mode).
+# Without it a machine cannot be reinstalled from a stick. Usage: fleet-usb-boot on|off|status|ensure
+case "${1:-status}" in
+  on)     enable_dev_usb_boot 2>/dev/null || crossystem dev_boot_usb=1 dev_boot_signed_only=0 ;;
+  off)    crossystem dev_boot_usb=0 ;;
+  status) echo "dev_boot_usb=$(crossystem dev_boot_usb 2>&1) dev_boot_signed_only=$(crossystem dev_boot_signed_only 2>&1)" ;;
+  ensure) # used at boot: only write when the flag was lost
+          [ "$(cat /etc/fleet-usb-boot 2>/dev/null)" = yes ] || exit 0
+          [ "$(crossystem dev_boot_usb 2>/dev/null)" = 1 ] || "$0" on ;;
+  *) echo "usage: $0 on|off|status|ensure"; exit 2 ;;
+esac

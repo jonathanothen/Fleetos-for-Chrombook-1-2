@@ -1,0 +1,27 @@
+#!/bin/bash
+# First-boot audio setup: ALSA mixers on these Chromebooks start muted and unrouted.
+# Best effort and generic: unmute every playback switch/route and set sensible output volumes.
+# The result is saved with alsactl so it survives reboots. Re-run manually: sudo fleet-audio-init force
+DONE=/var/lib/fleet-audio-init.done
+[ "$1" = force ] && rm -f "$DONE"
+[ -e "$DONE" ] && exit 0
+
+# Wait for the sound card to appear (driver is loaded by udev a few seconds after boot)
+for _ in $(seq 1 30); do grep -q '[0-9]' /proc/asound/cards 2>/dev/null && break; sleep 1; done
+grep -q '[0-9]' /proc/asound/cards 2>/dev/null || exit 0
+
+for card in $(sed -n 's/^ *\([0-9]\+\) \[.*/\1/p' /proc/asound/cards); do
+  amixer -c "$card" scontrols 2>/dev/null | sed -n "s/^Simple mixer control '\(.*\)',[0-9]\+$/\1/p" | while IFS= read -r ctl; do
+    case "$ctl" in
+      *[Mm]ic*|*MIC*|*[Ll]ine*in*|*Capture*|*ADC*|*Input*) continue ;;   # leave recording side alone
+    esac
+    amixer -c "$card" -q sset "$ctl" unmute 2>/dev/null || true
+    case "$ctl" in
+      Speaker*|Headphone*|Master*|PCM*|DAC*|Digital*|Playback*|Output*)
+        amixer -c "$card" -q sset "$ctl" 80% 2>/dev/null || true ;;
+    esac
+  done
+done
+
+alsactl store 2>/dev/null || true
+touch "$DONE"

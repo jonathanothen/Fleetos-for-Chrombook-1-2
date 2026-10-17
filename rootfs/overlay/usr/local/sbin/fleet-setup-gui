@@ -1,89 +1,235 @@
 #!/bin/bash
-# FleetOS first-boot setup wizard. Started by fleet-setup.service inside a temporary X server (as root),
-# before the login screen. Asks for language, keyboard, user account, computer name and Wi-Fi.
-# There is no built-in account, so the wizard is the only way to create the first (admin) user.
-# If it is cancelled or crashes, fleet-setup restarts it and finally falls back to a text-mode wizard.
-export LANG=C.UTF-8 NO_AT_BRIDGE=1 GDK_BACKEND=x11
+# FleetOS first-boot setup wizard. Started by fleet-setup (fleet-setup.service) inside a temporary X server
+# as root, before the login screen. There is no built-in account, so this wizard creates the first
+# (administrator) user. If it is cancelled or crashes, fleet-setup restarts it and finally falls back to a
+# text-mode wizard.
+export LANG=C.UTF-8 NO_AT_BRIDGE=1 GDK_BACKEND=x11 HOME=/root GTK_THEME=WhiteSur-Light
 SEP=$'\x1f'
-a=$'å'; ae=$'ä'; oe=$'ö'; AE=$'Ä'
+RULES=/usr/share/X11/xkb/rules/base.lst
 
+# --- Look: same theme as the desktop, no window frames, plain background --------------------------------
+mkdir -p /root/.config/gtk-3.0
+cat > /root/.config/gtk-3.0/settings.ini <<'EOF'
+[Settings]
+gtk-theme-name=WhiteSur-Light
+gtk-icon-theme-name=WhiteSur
+gtk-font-name=Inter 11
+EOF
+xsetroot -solid '#274472' 2>/dev/null
 openbox >/dev/null 2>&1 &
 sleep 1
 
-Y() { yad --center --title="FleetOS" --window-icon=preferences-system --separator="$SEP" "$@"; }
+Y() { yad --center --undecorated --borders=24 --title=FleetOS --window-icon=preferences-system \
+          --separator="$SEP" "$@"; }
+clean() { local v=${1//$SEP/}; echo "${v//|/}"; }
 
-# --- 1. Language and keyboard --------------------------------------------------------------------------
-res=$(Y --width=440 --form \
-  --text="<big><b>Welcome / V${ae}lkommen</b></big>\n\nChoose language and keyboard layout.\nV${ae}lj spr${a}k och tangentbord." \
-  --field="Language / Spr${a}k:CB" "Svenska!English" \
-  --field="Keyboard / Tangentbord:CB" "Svenska (se)!Norsk (no)!Dansk (dk)!Suomi (fi)" \
-  --button="Next / N${ae}sta:0") || exit 1
-IFS="$SEP" read -r LANGSEL KBSEL _ <<<"$res"
+# Plain-ASCII transliteration of common accented letters (works in any locale: byte-wise literals).
+translit() {
+  sed -e 's/å/a/g; s/ä/a/g; s/ö/o/g; s/Å/A/g; s/Ä/A/g; s/Ö/O/g' \
+      -e 's/é/e/g; s/è/e/g; s/ê/e/g; s/ë/e/g; s/É/E/g; s/á/a/g; s/à/a/g; s/â/a/g; s/í/i/g; s/ï/i/g' \
+      -e 's/ó/o/g; s/ô/o/g; s/ú/u/g; s/ü/u/g; s/Ü/U/g; s/ñ/n/g; s/ç/c/g; s/ß/ss/g' \
+      -e 's/æ/ae/g; s/Æ/AE/g; s/ø/o/g; s/Ø/O/g'
+}
+# Username: lowercase a-z, 0-9, - and _, starting with a letter, max 30.
+norm_user() {
+  printf '%s' "$1" | translit | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9_-' | sed 's/^[^a-z]*//' | cut -c1-30
+}
+# Computer name: lowercase a-z, 0-9 and single hyphens (spaces and _ become -), no leading/trailing -, max 40.
+norm_host() {
+  printf '%s' "$1" | translit | tr 'A-Z' 'a-z' | tr ' _' '--' | tr -cd 'a-z0-9-' \
+    | sed 's/--*/-/g; s/^-//; s/-$//' | cut -c1-40
+}
 
-case "$LANGSEL" in English*) LOC=en_US.UTF-8;; *) LOC=sv_SE.UTF-8;; esac
-case "$KBSEL" in Norsk*) KB=no;; Dansk*) KB=dk;; Suomi*) KB=fi;; *) KB=se;; esac
-setxkbmap "$KB" 2>/dev/null || true
+# --- 1. Language ---------------------------------------------------------------------------------------
+lang_rows() { while IFS='|' read -r c n; do echo "$c"; echo "$n"; done <<'EOF'
+sv_SE.UTF-8|Svenska
+en_US.UTF-8|English (US)
+en_GB.UTF-8|English (UK)
+nb_NO.UTF-8|Norsk bokmål
+nn_NO.UTF-8|Norsk nynorsk
+da_DK.UTF-8|Dansk
+fi_FI.UTF-8|Suomi
+is_IS.UTF-8|Íslenska
+de_DE.UTF-8|Deutsch
+fr_FR.UTF-8|Français
+es_ES.UTF-8|Español
+it_IT.UTF-8|Italiano
+pt_PT.UTF-8|Português
+pt_BR.UTF-8|Português (Brasil)
+nl_NL.UTF-8|Nederlands
+pl_PL.UTF-8|Polski
+cs_CZ.UTF-8|Čeština
+sk_SK.UTF-8|Slovenčina
+hu_HU.UTF-8|Magyar
+ro_RO.UTF-8|Română
+bg_BG.UTF-8|Български
+el_GR.UTF-8|Ελληνικά
+tr_TR.UTF-8|Türkçe
+ru_RU.UTF-8|Русский
+uk_UA.UTF-8|Українська
+et_EE.UTF-8|Eesti
+lv_LV.UTF-8|Latviešu
+lt_LT.UTF-8|Lietuvių
+hr_HR.UTF-8|Hrvatski
+sl_SI.UTF-8|Slovenščina
+sr_RS.UTF-8|Српски
+ca_ES.UTF-8|Català
+ar_EG.UTF-8|العربية
+he_IL.UTF-8|עברית
+fa_IR.UTF-8|فارسی
+hi_IN.UTF-8|हिन्दी
+th_TH.UTF-8|ไทย
+vi_VN.UTF-8|Tiếng Việt
+id_ID.UTF-8|Bahasa Indonesia
+so_SO.UTF-8|Soomaali
+sw_KE.UTF-8|Kiswahili
+other|Other... (type a locale code)
+EOF
+}
 
-# --- 2. Account ----------------------------------------------------------------------------------------
 while true; do
-  res=$(Y --width=480 --form \
-    --text="<big><b>Account / Anv${ae}ndare</b></big>\n\nCreate your user account.\nSkapa ditt anv${ae}ndarkonto." \
-    --field="Full name / Namn" "" \
-    --field="Username / Anv${ae}ndarnamn" "" \
-    --field="Password / L${oe}senord:H" "" \
-    --field="Repeat password / Upprepa l${oe}senord:H" "" \
-    --field="Computer name / Datornamn" "$(cat /etc/hostname)" \
-    --button="Next / N${ae}sta:0") || exit 1
-  IFS="$SEP" read -r FULL USERN PW1 PW2 HOST _ <<<"$res"
-  FULL=${FULL//[:,]/}
+  LOC=$(lang_rows | Y --list --width=560 --height=560 --search-column=2 \
+    --column="Code:HD" --column="Language" --print-column=1 \
+    --text="<big><b>Welcome / Välkommen</b></big>\n\nChoose your language. Type to search." \
+    --button="Next:0") || exit 1
+  LOC=$(clean "$LOC")
+  [ -n "$LOC" ] || continue
+  if [ "$LOC" = other ]; then
+    LOC=$(Y --entry --width=520 --text="Locale code, for example <b>ja_JP.UTF-8</b> or <b>zh_CN.UTF-8</b>.\n(Some scripts need extra fonts.)" \
+          --entry-text="en_US.UTF-8" --button="Next:0") || continue
+    LOC=$(clean "$LOC")
+  fi
+  grep -qE "^${LOC//./\\.} " /usr/share/i18n/SUPPORTED && break
+  Y --error --text="Unknown locale: $LOC" --button="OK:0"
+done
+
+# --- 2. Keyboard layouts (any layout, up to 3, switch with Alt+Shift) --------------------------------------
+CC=${LOC#*_}; CC=${CC%%.*}; GUESS=$(echo "$CC" | tr 'A-Z' 'a-z'); [ "$GUESS" = gb ] || true
+layout_rows() {
+  awk -v g="$GUESS" '/^! layout/{f=1;next} /^!/{f=0}
+       f&&NF{c=$1; $1=""; sub(/^ +/,""); if(c==g){first=c "\n" $0} else {rest=rest c "\n" $0 "\n"}}
+       END{ if(first!="") print first; printf "%s", rest }' "$RULES"
+}
+variant_rows() {
+  awk -v l="$1" '/^! variant/{f=1;next} /^!/{f=0}
+       f&&NF{v=$1; k=$2; sub(/:$/,"",k); if(k==l){$1="";$2="";sub(/^ +/,""); print v; print $0}}' "$RULES"
+}
+LAYS=(); VARS=()
+pick_layout() {
+  local lay var vrows
+  while true; do
+    lay=$(layout_rows | Y --list --width=560 --height=560 --search-column=2 \
+      --column="Code:HD" --column="Keyboard layout" --print-column=1 \
+      --text="<big><b>Keyboard</b></big>\n\nChoose a keyboard layout. Type to search." \
+      --button="Next:0") || exit 1
+    lay=$(clean "$lay"); [ -n "$lay" ] && break
+  done
+  vrows=$(variant_rows "$lay")
+  var=""
+  if [ -n "$vrows" ]; then
+    var=$( { echo ""; echo "(Standard)"; echo "$vrows"; } | Y --list --width=560 --height=480 --search-column=2 \
+      --column="Code:HD" --column="Variant" --print-column=1 \
+      --text="<big><b>Keyboard variant</b></big>" --button="Next:0") || var=""
+    var=$(clean "$var")
+  fi
+  LAYS+=("$lay"); VARS+=("$var")
+}
+pick_layout
+while [ ${#LAYS[@]} -lt 3 ]; do
+  Y --question --text="Add another keyboard layout to switch between with <b>Alt+Shift</b>?" \
+    --button="No, continue:1" --button="Add another:0" || break
+  pick_layout
+done
+XL=$(IFS=,; echo "${LAYS[*]}"); XV=$(IFS=,; echo "${VARS[*]}")
+setxkbmap -layout "$XL" -variant "$XV" 2>/dev/null || true
+
+# --- 3. Account ----------------------------------------------------------------------------------------
+FULL=$(Y --form --width=520 --text="<big><b>Your account</b></big>\n\nWhat is your name?" \
+         --field="Full name" "" --button="Next:0") || exit 1
+FULL=$(clean "$FULL"); FULL=${FULL//[:,]/}
+SUGGEST=$(norm_user "$FULL")
+# Suggested computer name: "<first-name>-chromebook" (falls back to the current fleet-xxxxxx name)
+FIRST=$(norm_host "${FULL%% *}")
+if [ -n "$FIRST" ]; then HOSTSUG="$FIRST-chromebook"; else HOSTSUG=$(cat /etc/hostname); fi
+
+while true; do
+  res=$(Y --form --width=520 \
+    --text="<big><b>Your account</b></big>\n\nChoose a username (lowercase a-z, digits, - and _ only) and a password." \
+    --field="Username" "$SUGGEST" \
+    --field="Password:H" "" \
+    --field="Repeat password:H" "" \
+    --field="Computer name (lowercase a-z, digits and -)" "$HOSTSUG" \
+    --field="Allow booting from USB (needed to reinstall this computer):CHK" TRUE \
+    --button="Next:0") || exit 1
+  IFS="$SEP" read -r USERN PW1 PW2 HOST USBSEL _ <<<"$res"
+  FIXED=$(norm_user "$USERN")
   err=""
-  [[ $USERN =~ ^[a-z][a-z0-9_-]{1,30}$ ]] || err="Username: a-z, 0-9, - and _, starting with a letter. / Anv${ae}ndarnamn: sm${a} bokst${a}ver (a-z), siffror, - och _."
-  id "$USERN" >/dev/null 2>&1 && err="That username already exists. / Anv${ae}ndarnamnet finns redan."
-  [ "$PW1" = "$PW2" ] || err="Passwords do not match. / L${oe}senorden st${ae}mmer inte."
-  [ ${#PW1} -ge 4 ] || err="Password too short (min 4). / L${oe}senordet ${ae}r f${oe}r kort (minst 4)."
-  [[ $HOST =~ ^[A-Za-z0-9-]{1,40}$ ]] || err="Computer name: letters, digits and - only. / Datornamn: bara bokst${a}ver, siffror och -."
+  [ -n "$FIXED" ] || err="The username is empty or has no usable characters."
+  if [ -z "$err" ] && [ "$FIXED" != "$USERN" ]; then
+    if Y --question --text="Usernames may only use lowercase a-z, digits, - and _ (no capitals, å, ä, ö or spaces).\n\nUse <b>$FIXED</b> instead?" \
+         --button="Change it:1" --button="Use $FIXED:0"; then USERN=$FIXED; else continue; fi
+  fi
+  [ -n "$err" ] || { id "$USERN" >/dev/null 2>&1 && err="That username already exists."; }
+  [ -n "$err" ] || [ "$PW1" = "$PW2" ] || err="The passwords do not match."
+  [ -n "$err" ] || [ ${#PW1} -ge 4 ] || err="The password is too short (at least 4 characters)."
+  if [ -z "$err" ]; then
+    FIXEDH=$(norm_host "$HOST")
+    if [ -z "$FIXEDH" ]; then err="The computer name is empty or has no usable characters."
+    elif [ "$FIXEDH" != "$HOST" ]; then
+      if Y --question --text="Computer names may only use lowercase a-z, digits and - (no capitals, å, ä, ö, spaces or _).\n\nUse <b>$FIXEDH</b> instead?" \
+           --button="Change it:1" --button="Use $FIXEDH:0"; then HOST=$FIXEDH; else continue; fi
+    fi
+  fi
   if [ -n "$err" ]; then Y --error --text="$err" --button="OK:0"; continue; fi
   break
 done
+[ -n "$FULL" ] || FULL=$USERN
 
-# --- 3. Wi-Fi (optional) -------------------------------------------------------------------------------
+# --- 4. Wi-Fi (optional) -------------------------------------------------------------------------------
 if command -v nmcli >/dev/null && nmcli -t -f TYPE device | grep -q '^wifi'; then
   nmcli radio wifi on >/dev/null 2>&1
   for _ in 1 2 3; do nmcli device wifi rescan >/dev/null 2>&1; sleep 2; done
   while true; do
     SSIDS=$(nmcli -t -f SSID device wifi list 2>/dev/null | sed 's/\\:/:/g' | tr -d '!' | awk 'NF' | sort -u | paste -sd'!')
-    res=$(Y --width=480 --form \
-      --text="<big><b>Wi-Fi</b></big>\n\nChoose a network (or skip). / V${ae}lj n${ae}tverk (eller hoppa ${oe}ver)." \
-      --field="Network / N${ae}tverk:CBE" "$SSIDS" \
-      --field="Password / L${oe}senord:H" "" \
-      --button="Skip / Hoppa ${oe}ver:1" --button="Connect / Anslut:0") || break
+    res=$(Y --form --width=520 \
+      --text="<big><b>Wi-Fi</b></big>\n\nChoose a network, or skip." \
+      --field="Network:CBE" "$SSIDS" \
+      --field="Password:H" "" \
+      --button="Skip:1" --button="Connect:0") || break
     IFS="$SEP" read -r SSID WPW _ <<<"$res"
     [ -n "$SSID" ] || break
     if [ -n "$WPW" ]; then nmcli device wifi connect "$SSID" password "$WPW" >/dev/null 2>&1
     else nmcli device wifi connect "$SSID" >/dev/null 2>&1; fi
-    if [ $? -eq 0 ]; then
-      Y --info --text="Connected to $SSID. / Ansluten till $SSID." --button="OK:0"; break
-    fi
-    Y --question --text="Could not connect. Try again? / Kunde inte ansluta. F${oe}rs${oe}k igen?" \
-      --button="Retry / F${oe}rs${oe}k igen:0" --button="Skip / Hoppa ${oe}ver:1" || break
+    if [ $? -eq 0 ]; then Y --info --text="Connected to $SSID." --button="OK:0"; break; fi
+    Y --question --text="Could not connect. Try again?" --button="Skip:1" --button="Try again:0" || break
   done
 fi
 
 # --- Apply ---------------------------------------------------------------------------------------------
 (
-  echo "# Applying settings / Till${ae}mpar inst${ae}llningar..."
+  echo "# Setting up your computer..."
+  if grep -q "^# *${LOC//./\\.} UTF-8" /etc/locale.gen; then
+    sed -i "s/^# *${LOC//./\\.} UTF-8/$LOC UTF-8/" /etc/locale.gen
+  else
+    grep -q "^${LOC//./\\.} UTF-8" /etc/locale.gen || echo "$LOC UTF-8" >> /etc/locale.gen
+  fi
+  locale-gen >/dev/null 2>&1
   update-locale LANG="$LOC"
-  layouts="$KB"; for l in se no dk fi; do [ "$l" = "$KB" ] || layouts="$layouts,$l"; done
-  sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"$layouts\"/" /etc/default/keyboard
+  sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"$XL\"/; s/^XKBVARIANT=.*/XKBVARIANT=\"$XV\"/" /etc/default/keyboard
   echo "$HOST" > /etc/hostname
   sed -i "s/^127\.0\.1\.1.*/127.0.1.1 $HOST/" /etc/hosts
   hostname "$HOST"
   useradd -m -s /bin/bash -c "$FULL" -G sudo,audio,video,plugdev,netdev "$USERN"
   echo "$USERN:$PW1" | chpasswd
+  if [ "$USBSEL" = "TRUE" ]; then
+    echo yes > /etc/fleet-usb-boot; /usr/local/sbin/fleet-usb-boot on >/dev/null 2>&1
+  else
+    echo no > /etc/fleet-usb-boot; /usr/local/sbin/fleet-usb-boot off >/dev/null 2>&1
+  fi
   rm -f /etc/fleet-needs-setup
   sync
-) | Y --progress --pulsate --auto-close --no-buttons --width=380 --text="Please wait... / V${ae}nta..."
+) | Y --progress --pulsate --auto-close --no-buttons --width=420 --text="Please wait..."
 
-Y --info --width=380 --text="<big><b>Done / Klart</b></big>\n\nThe computer restarts now.\nDatorn startar om." --button="OK:0"
+Y --info --width=420 --text="<big><b>All set</b></big>\n\nYour account <b>$USERN</b> is ready.\nThe computer restarts now." --button="OK:0"
 systemctl --no-block reboot
 exit 0

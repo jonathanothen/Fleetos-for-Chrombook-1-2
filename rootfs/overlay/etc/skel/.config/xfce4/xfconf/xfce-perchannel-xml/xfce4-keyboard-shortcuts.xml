@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<channel name="xfce4-keyboard-shortcuts" version="1.0">
+  <property name="commands" type="empty">
+    <property name="custom" type="empty">
+      <property name="XF86MonBrightnessUp" type="string" value="brightnessctl set +10%"/>
+      <property name="XF86MonBrightnessDown" type="string" value="brightnessctl set 10%-"/>
+      <property name="override" type="bool" value="true"/>
+    </property>
+  </property>
+</channel>

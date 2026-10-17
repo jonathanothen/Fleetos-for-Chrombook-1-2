@@ -1,0 +1,12 @@
+[Unit]
+Description=First-boot audio mixer setup (unmute and route outputs)
+ConditionPathExists=!/var/lib/fleet-audio-init.done
+ConditionKernelCommandLine=!fleet_install=1
+After=sound.target systemd-udev-settle.service alsa-restore.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/fleet-audio-init
+
+[Install]
+WantedBy=multi-user.target

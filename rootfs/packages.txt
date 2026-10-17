@@ -49,6 +49,10 @@ xfce4-power-manager
 xfce4-power-manager-plugins
 yad
 alsa-utils
+pipewire-alsa
+brightnessctl
+evtest
+x11-utils
 iw
 rfkill
 usbutils

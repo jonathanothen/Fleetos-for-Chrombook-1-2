@@ -26,6 +26,8 @@ echo "$HOST" > /etc/hostname
 sed -i "s/^127\.0\.1\.1.*/127.0.1.1 $HOST/" /etc/hosts
 useradd -m -s /bin/bash -G sudo,audio,video,plugdev,netdev "$USERN"
 echo "$USERN:$PW1" | chpasswd
+echo yes > /etc/fleet-usb-boot   # keep USB boot enabled so the machine can be reinstalled
+/usr/local/sbin/fleet-usb-boot on >/dev/null 2>&1
 rm -f /etc/fleet-needs-setup
 sync
 echo "Done. Restarting..."
