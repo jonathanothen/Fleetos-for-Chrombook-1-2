@@ -26,6 +26,7 @@ unattended-upgrades
 apt-utils
 zram-tools
 firmware-misc-nonfree
+firmware-libertas
 firmware-linux-free
 wireless-regdb
 network-manager
@@ -47,6 +48,10 @@ xfce4-terminal
 xfce4-power-manager
 xfce4-power-manager-plugins
 yad
+alsa-utils
+iw
+rfkill
+usbutils
 xinit
 openbox
 xfce4-notifyd
