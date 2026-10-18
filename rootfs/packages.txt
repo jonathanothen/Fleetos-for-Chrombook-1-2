@@ -72,6 +72,8 @@ pipewire-pulse
 wireplumber
 pavucontrol
 gvfs
+polkitd
+pkexec
 lxpolkit
 firefox-esr
 firefox-esr-l10n-sv-se

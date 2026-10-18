@@ -242,6 +242,26 @@ fi
   hostname "$HOST"
   useradd -m -s /bin/bash -c "$FULL" -G sudo,audio,video,plugdev,netdev "$USERN"
   echo "$USERN:$PW1" | chpasswd
+  # Give the new user the chosen keyboard layouts as THEIR OWN settings, with "use system defaults" switched
+  # off. With it on, the whole layout list in Settings -> Keyboard and in the panel plugin is greyed out.
+  KD="/home/$USERN/.config/xfce4/xfconf/xfce-perchannel-xml"
+  mkdir -p "$KD"
+  cat > "$KD/keyboard-layout.xml" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+
+<channel name="keyboard-layout" version="1.0">
+  <property name="Default" type="empty">
+    <property name="XkbDisable" type="bool" value="false"/>
+    <property name="XkbModel" type="string" value="chromebook"/>
+    <property name="XkbLayout" type="string" value="$XL"/>
+    <property name="XkbVariant" type="string" value="$XV"/>
+    <property name="XkbOptions" type="empty">
+      <property name="Group" type="string" value="grp:alt_shift_toggle"/>
+    </property>
+  </property>
+</channel>
+EOF
+  chown -R "$USERN:$USERN" "/home/$USERN/.config"
   if [ "$USBSEL" = "TRUE" ]; then
     echo yes > /etc/fleet-usb-boot; /usr/local/sbin/fleet-usb-boot on >/dev/null 2>&1
   else

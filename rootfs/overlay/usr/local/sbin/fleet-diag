@@ -17,7 +17,7 @@ run 'cat /proc/asound/cards; aplay -l'
 LINES_MAX=90 run 'amixer -c 0 scontrols'
 LINES_MAX=40 run 'amixer -c 0 sget Speaker; amixer -c 0 sget Headphone'
 run 'wpctl status 2>/dev/null | head -40 || pactl list short sinks'
-run 'cat /var/lib/fleet-audio-init.done 2>&1; ls -l /var/lib/fleet-audio-init.done'
+run 'systemctl status fleet-audio-init --no-pager | head -8; ls /etc/wireplumber/wireplumber.conf.d/ 2>&1'
 section "Backlight and battery"
 run 'ls -l /sys/class/backlight/; for d in /sys/class/backlight/*; do echo $d; cat $d/max_brightness $d/brightness $d/actual_brightness $d/bl_power 2>&1; done'
 run 'for d in /sys/class/power_supply/*; do echo "== $d"; cat $d/uevent; done'

@@ -169,6 +169,10 @@ frame > border, .frame { border-radius: 10px; border-color: @fleet_line; }
 
 /* ---------- Xfce panel ---------- */
 .xfce4-panel, #XfcePanelWindow { background-color: @@PANEL@@; color: @fleet_text; border-bottom: 1px solid alpha(@@OVER@@, 0.07); }
+/* The base theme (WhiteSur) styles the plugins for its own dark panel; on top of our panel that showed up as
+   dark boxes around the tray icons and the menu button. Clear every background inside the panel; the hover and
+   active states below add colour back. */
+.xfce4-panel *, #XfcePanelWindow * { background-color: transparent; background-image: none; box-shadow: none; text-shadow: none; }
 .xfce4-panel button, .xfce4-panel .tasklist button {
   background-color: transparent; border: none; border-radius: 8px; box-shadow: none; padding: 1px 8px; min-height: 20px;
 }
@@ -177,7 +181,9 @@ frame > border, .frame { border-radius: 10px; border-color: @fleet_line; }
 .xfce4-panel label { color: @fleet_text; font-weight: 500; }
 
 /* ---------- Whisker menu ---------- */
-#whiskermenu-window, .whiskermenu-window { border-radius: 16px; background-color: @@MENU@@; border: 1px solid alpha(@@OVER@@, 0.10); box-shadow: 0 14px 40px alpha(black, @@SHADOW@@); }
+/* No box-shadow here: the window is exactly as big as the menu, so a shadow is painted inside it as a dark frame. */
+#whiskermenu-window, .whiskermenu-window { border-radius: 16px; background-color: @@MENU@@; border: 1px solid alpha(@@OVER@@, 0.14); box-shadow: none; }
+#whiskermenu-window decoration, .whiskermenu-window decoration { box-shadow: none; border-radius: 16px; background-color: transparent; }
 #whiskermenu-window entry { border-radius: 999px; padding: 5px 12px; }
 
 /* ---------- Thunar tweaks ---------- */

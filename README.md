@@ -44,8 +44,10 @@ USB boot (`sudo enable_dev_usb_boot`). Then insert the stick before powering on 
 ## 4. Install
 
 The stick boots straight into the installer: 15 s countdown (press any key to abort), then it repartitions the
-eMMC, copies the system, writes the kernel (slot A plus a fallback slot B) and powers off. Remove the stick,
-power on and press Ctrl+D (or wait 30 s) on the dev-mode screen.
+eMMC, writes the kernel first (slot A plus a fallback slot B, so an interrupted install still leaves a bootable
+kernel), copies the system and powers off. **Remove the stick only after the screen has gone dark**: the installer
+runs from the stick, and pulling it earlier makes the shutdown hang. Then power on and press Ctrl+D (or wait 30 s)
+on the dev-mode screen.
 
 ## First boot (setup wizard)
 
@@ -82,8 +84,12 @@ To add one, copy a `.conf` file and give it a new `ID`,
 - **Backlight:** only 8 steps (0-7). The brightness keys run `fleet-brightness up|down`, which steps one level and
   never goes to 0 (black screen). The `video` group may write the backlight; a passwordless `sudo brightnessctl`
   is the fallback.
-- **Audio:** ALSA mixers start muted. `fleet-audio-init` unmutes and sets sane levels on first boot
-  (amplifiers 45 %); run `sudo fleet-audio-init force` to redo it.
+- **Audio:** ALSA mixers start muted. `fleet-audio-init` runs at every boot: it routes DAC1 to the speaker and
+  headphone amplifiers, switches the EQ/inputs off, and **locks the speaker amplifier at +5 dB** (raw step 25 of 39;
+  measured on an XE303C12: clean at +4.8 dB, cracks at +11 dB). PipeWire keeps its volume in software
+  (`51-fleet-alsa.conf`) and never moves the amplifier, and the panel volume is capped at 100 %, so the volume keys
+  (0-100 %) are the only thing that changes the loudness and +5 dB is always the maximum. Re-apply by hand with
+  `sudo fleet-audio-init`.
 - **Battery:** `upower` needs user namespaces in the kernel (included). If the panel shows no battery %, run
   `sudo fleet-diag`.
 - **Wi-Fi (Marvell 88W8797):** needs `firmware-libertas`. The mainline driver treats an unsupported init command

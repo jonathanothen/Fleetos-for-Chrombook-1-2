@@ -95,7 +95,16 @@ fleet-usb-boot on >/dev/null 2>&1 || true
 sync
 umount /mnt/target
 echo
-echo "DONE. Machine $HN powers off in 5 s. Remove the USB stick."
-sleep 5
-systemctl poweroff
+echo "DONE. Machine $HN is installed and powers off now."
+echo "Remove the USB stick AFTER the screen has gone dark (not before)."
+sleep 4
+# Power off WITHOUT touching the disk. We are running from the USB stick: if it is pulled while systemd is
+# shutting down, systemctl can no longer load anything from it and the machine hangs (EXT4-fs errors, read-only).
+# The target disk is already synced and unmounted, so a direct power-off is safe. Marking the stick's own
+# filesystem read-only first keeps it clean for the next machine.
+mount -o remount,ro / 2>/dev/null || true
+sync
+echo 1 > /proc/sys/kernel/sysrq 2>/dev/null || true
+echo o > /proc/sysrq-trigger 2>/dev/null || true       # needs CONFIG_MAGIC_SYSRQ: immediate power off, no disk access
+systemctl poweroff -f -f 2>/dev/null || true           # fallback: forced, does not load any units
 sleep infinity

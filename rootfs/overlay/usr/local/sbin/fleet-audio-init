@@ -1,16 +1,20 @@
 #!/bin/bash
-# First-boot audio setup for the Chromebook's MAX98095/MAX98090 codec. The mixers start muted and unrouted.
-# Do ONLY what is needed: route DAC1 straight to the speaker and headphone amplifiers, set a moderate level,
-# and switch everything else off. (An earlier version "unmuted everything": that enabled the uninitialised
-# equaliser/biquad filters and fed the inputs into the outputs, which produced screeching.)
-# Re-run manually with: sudo fleet-audio-init force
-DONE=/var/lib/fleet-audio-init.done
-[ "$1" = force ] && rm -f "$DONE"
-[ -e "$DONE" ] && exit 0
+# Audio setup for the Chromebook's MAX98095/MAX98090 codec, run at EVERY boot (fleet-audio-init.service).
+# The mixers start muted and unrouted. This sets the hardware to a fixed, known state:
+#   - route DAC1 straight to the speaker and headphone amplifiers, everything else off
+#     (an earlier version "unmuted everything": that enabled the uninitialised equaliser/biquad filters and fed the
+#      inputs into the outputs, which produced screeching)
+#   - speaker amplifier LOCKED at +5 dB. Measured on an XE303C12: clean at +4.8 dB, cracks at +11 dB.
+#     PipeWire keeps its own volume in software (51-fleet-alsa.conf) and never touches this control, so the volume
+#     keys (0-100 %) are the only thing that changes the loudness, and the maximum is always +5 dB.
+# Running it every boot (not only once) means a stray mixer change cannot stick across a reboot.
 
 # Wait for the sound card (the driver is loaded by udev a few seconds after boot)
 for _ in $(seq 1 30); do grep -q '[0-9]' /proc/asound/cards 2>/dev/null && break; sleep 1; done
 grep -q '[0-9]' /proc/asound/cards 2>/dev/null || exit 0
+
+# Raw amplifier step for the speaker: 0.5 dB per step, step 39 = +12 dB, so +5 dB = step 25.
+SPEAKER_STEP=25
 
 for card in $(sed -n 's/^ *\([0-9]\+\) \[.*/\1/p' /proc/asound/cards); do
   have() { amixer -c "$card" scontrols 2>/dev/null | grep -qF "'$1',"; }
@@ -35,10 +39,7 @@ for card in $(sed -n 's/^ *\([0-9]\+\) \[.*/\1/p' /proc/asound/cards); do
   set "Left Headphone Mixer Left DAC1"     on
   set "Right Headphone Mixer Right DAC1"   on
 
-  # 3. Amplifiers: unmuted, moderate. The speaker amp has up to +12 dB: ~40 % is ~0 dB.
-  set Speaker   unmute 40%
-  set Headphone unmute 45%
+  # 3. Amplifiers: unmuted at fixed levels (a plain number is the raw step, not a percentage)
+  set Speaker   unmute "$SPEAKER_STEP"
+  set Headphone unmute 65%
 done
-
-alsactl store 2>/dev/null || true
-touch "$DONE"

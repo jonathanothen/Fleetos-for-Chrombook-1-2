@@ -1,8 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Tangentbord och layouter
-Name[en]=Keyboard layouts
-Comment=Valj tangentbordslayout (valfritt sprak)
+Name=Keyboard layouts
+Name[sv]=Tangentbord och layouter
+Comment=Choose keyboard layouts (any language)
+Comment[sv]=Välj tangentbordslayout (valfritt språk)
 Exec=/usr/local/bin/fleet-keyboard
 Icon=input-keyboard
-Categories=Settings;DesktopSettings;
+Categories=Settings;DesktopSettings;X-XFCE-SettingsDialog;X-XFCE-PersonalSettings;

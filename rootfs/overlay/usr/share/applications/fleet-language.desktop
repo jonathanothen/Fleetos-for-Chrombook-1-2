@@ -1,8 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Sprak
-Name[en]=Language
-Comment=Valj systemsprak (valfritt sprak)
+Name=Language
+Name[sv]=Språk
+Comment=Choose the system language (any language)
+Comment[sv]=Välj systemspråk (valfritt språk)
 Exec=/usr/local/bin/fleet-language
 Icon=preferences-desktop-locale
-Categories=Settings;DesktopSettings;
+Categories=Settings;DesktopSettings;X-XFCE-SettingsDialog;X-XFCE-PersonalSettings;

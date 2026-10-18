@@ -1,6 +1,5 @@
 [Unit]
-Description=First-boot audio mixer setup (unmute and route outputs)
-ConditionPathExists=!/var/lib/fleet-audio-init.done
+Description=Audio mixer setup (fixed amplifier level, routing)
 ConditionKernelCommandLine=!fleet_install=1
 After=sound.target systemd-udev-settle.service alsa-restore.service
 

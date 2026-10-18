@@ -64,7 +64,11 @@ esac
   echo '};'
 } > "$T/kernel.its"
 
-mkimage -D "-I dts -O dtb -p 2048" -f "$T/kernel.its" "$T/kernel.itb" >/dev/null
+# mkimage prints harmless "unit_address_vs_reg" and "this will break signing" warnings (the FIT is not
+# signed that way; vboot signs it). Hide them, but show everything if it really fails.
+if ! mkimage -D "-I dts -O dtb -p 2048" -f "$T/kernel.its" "$T/kernel.itb" >/dev/null 2>"$T/mkimage.err"; then
+  cat "$T/mkimage.err" >&2; exit 1
+fi
 
 echo "console=tty1 root=PARTUUID=$ROOTUUID rootwait rw rootfstype=ext4 noinitrd gpt quiet loglevel=3 kern_guid=%U $EXTRA" > "$T/cmdline"
 dd if=/dev/zero of="$T/bootloader.bin" bs=512 count=1 status=none
