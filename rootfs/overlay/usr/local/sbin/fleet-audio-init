@@ -4,7 +4,7 @@
 #   - route DAC1 straight to the speaker and headphone amplifiers, everything else off
 #     (an earlier version "unmuted everything": that enabled the uninitialised equaliser/biquad filters and fed the
 #      inputs into the outputs, which produced screeching)
-#   - speaker amplifier LOCKED at +5 dB. Measured on an XE303C12: clean at +4.8 dB, cracks at +11 dB.
+#   - speaker amplifier LOCKED at +5 dB (step 26). Measured on an XE303C12: clean at +4.8 dB, cracks at +11 dB.
 #     PipeWire keeps its own volume in software (51-fleet-alsa.conf) and never touches this control, so the volume
 #     keys (0-100 %) are the only thing that changes the loudness, and the maximum is always +5 dB.
 # Running it every boot (not only once) means a stray mixer change cannot stick across a reboot.
@@ -13,8 +13,10 @@
 for _ in $(seq 1 30); do grep -q '[0-9]' /proc/asound/cards 2>/dev/null && break; sleep 1; done
 grep -q '[0-9]' /proc/asound/cards 2>/dev/null || exit 0
 
-# Raw amplifier step for the speaker: 0.5 dB per step, step 39 = +12 dB, so +5 dB = step 25.
-SPEAKER_STEP=25
+# Raw amplifier step for the speaker. The scale is NOT linear (measured with amixer sget on an XE303C12):
+#   step 24 = +3.0 dB, 25 = +4.0, 26 = +5.0, 27 = +6.0, 28 = +6.5, 29 = +7.0, 30 = +7.5, 31 = +8.0, 32 = +8.5 ...
+#   (39 = +12 dB). So +5 dB = step 26.
+SPEAKER_STEP=26
 
 for card in $(sed -n 's/^ *\([0-9]\+\) \[.*/\1/p' /proc/asound/cards); do
   have() { amixer -c "$card" scontrols 2>/dev/null | grep -qF "'$1',"; }

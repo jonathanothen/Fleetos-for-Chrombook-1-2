@@ -1,0 +1,19 @@
+# package|Name|Description   (chosen for 2 GB RAM / ARM; one line per app, add your own)
+libreoffice-writer|LibreOffice Writer|Word processor (heavy: about 400 MB on disk)
+libreoffice-calc|LibreOffice Calc|Spreadsheet
+libreoffice-impress|LibreOffice Impress|Presentations
+libreoffice-l10n-sv|LibreOffice Svenska|Swedish language pack for LibreOffice
+chromium|Chromium|Web browser (a second browser, uses more RAM than Firefox)
+thunderbird|Thunderbird|Email
+vlc|VLC|Video and music player
+audacious|Audacious|Light music player
+gimp|GIMP|Image editor (heavy)
+inkscape|Inkscape|Vector graphics (heavy)
+geany|Geany|Light code editor
+transmission-gtk|Transmission|BitTorrent client
+gnome-calculator|Calculator|Calculator
+simple-scan|Simple Scan|Scanner
+gnome-disk-utility|Disks|Disk utility
+htop|htop|Process viewer
+file-roller|File Roller|Archive manager
+libreoffice-gtk3|LibreOffice GTK look|Better theme integration for LibreOffice

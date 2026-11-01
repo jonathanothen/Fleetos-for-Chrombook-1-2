@@ -1,0 +1,29 @@
+#!/bin/bash
+# Root helper for the FleetOS app store (fleet-store). Called through pkexec (org.fleetos.apt policy).
+#   fleet-apt update                 refresh package lists
+#   fleet-apt upgrade                install all available updates
+#   fleet-apt install PKG...         install packages
+#   fleet-apt remove PKG...          remove packages (and unused dependencies)
+# Package names are validated, so the policy cannot be abused to pass options to apt.
+set -u
+export DEBIAN_FRONTEND=noninteractive LC_ALL=C
+APT=(apt-get -y -o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confold)
+
+action=${1:-}; shift || true
+for p in "$@"; do
+  [[ $p =~ ^[a-z0-9][a-z0-9+.-]+$ ]] || { echo "Refusing odd package name: $p" >&2; exit 2; }
+done
+
+case "$action" in
+  update)  "${APT[@]}" update ;;
+  upgrade) "${APT[@]}" update && "${APT[@]}" dist-upgrade ;;
+  install) [ $# -gt 0 ] || exit 2; "${APT[@]}" install --no-install-recommends "$@" ;;
+  remove)
+    [ $# -gt 0 ] || exit 2
+    for p in "$@"; do   # never let the store remove the desktop itself
+      case "$p" in xfce4*|lightdm*|linux-*|systemd*|network-manager*|fleet*|sudo|plank|xorg*|xfwm4)
+        echo "Protected package: $p" >&2; exit 2 ;; esac
+    done
+    "${APT[@]}" autoremove --purge "$@" 2>&1 || "${APT[@]}" remove "$@" ;;
+  *) echo "usage: fleet-apt update|upgrade|install PKG...|remove PKG..." >&2; exit 2 ;;
+esac

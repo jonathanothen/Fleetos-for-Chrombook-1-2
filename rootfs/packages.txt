@@ -75,6 +75,14 @@ gvfs
 polkitd
 pkexec
 lxpolkit
+synaptic
+libavcodec-extra
+mpv
+yt-dlp
+xclip
+atril
+ristretto
+xarchiver
 firefox-esr
 firefox-esr-l10n-sv-se
 fonts-inter

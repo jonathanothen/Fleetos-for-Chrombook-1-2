@@ -85,7 +85,7 @@ To add one, copy a `.conf` file and give it a new `ID`,
   never goes to 0 (black screen). The `video` group may write the backlight; a passwordless `sudo brightnessctl`
   is the fallback.
 - **Audio:** ALSA mixers start muted. `fleet-audio-init` runs at every boot: it routes DAC1 to the speaker and
-  headphone amplifiers, switches the EQ/inputs off, and **locks the speaker amplifier at +5 dB** (raw step 25 of 39;
+  headphone amplifiers, switches the EQ/inputs off, and **locks the speaker amplifier at +5 dB** (raw step 26 of 39; the scale is not linear;
   measured on an XE303C12: clean at +4.8 dB, cracks at +11 dB). PipeWire keeps its volume in software
   (`51-fleet-alsa.conf`) and never moves the amplifier, and the panel volume is capped at 100 %, so the volume keys
   (0-100 %) are the only thing that changes the loudness and +5 dB is always the maximum. Re-apply by hand with
@@ -95,6 +95,46 @@ To add one, copy a `.conf` file and give it a new `ID`,
 - **Wi-Fi (Marvell 88W8797):** needs `firmware-libertas`. The mainline driver treats an unsupported init command
   (`0x242`) as fatal on this chip, so `kernel/build-kernel.sh` applies a small patch.
 - **USB boot flag:** `sudo fleet-usb-boot on|off|status`.
+
+## Performance
+
+Measured on an XE303C12: boot 10.4 s (2.7 s kernel + 7.7 s userspace), 400 MB RAM used at the desktop, zram swap,
+`noatime`. Tuning in the image: apt's daily timers run 20-30 min after boot instead of right after it (they cost
+8.5 s of CPU/eMMC), `blueman-mechanism`, `e2scrub`, `man-db` and `NetworkManager-wait-online` are not started at
+boot, the journal is kept in RAM (`Storage=volatile`, fewer eMMC writes), and systemd start/stop timeouts are short.
+
+### Web and YouTube
+
+The Exynos 5250 has no usable hardware video decoding in a browser, so video is decoded by the two CPU cores.
+Today's YouTube serves VP9/AV1 by default, which is far too heavy. The image therefore (a) turns VP9/AV1 off in
+Firefox (`/usr/lib/firefox-esr/defaults/pref/fleet.js`) so YouTube falls back to H.264, (b) installs uBlock Origin
+by policy (ads are a large part of the load), (c) limits Firefox to 2 content processes with an in-RAM cache,
+and (d) ships `mpv` + `yt-dlp` set to H.264 at most 480p: `mpv "<youtube-url>"` is the smoothest way to watch.
+Measured on an XE303C12 with H.264 at 360p in Firefox: 1150 of 1350 frames dropped, although video decoding
+used only about 12 % CPU per thread; the YouTube page itself (JavaScript, software painting, X11 copies) uses the
+rest, and turning the compositor off did not change it. **mpv plays the same video smoothly at 480p**, so the
+image has **Spela videolänk / Play video link** (`fleet-play`, in the menu): paste a link and it plays in mpv. It
+keeps a current yt-dlp in `~/.local/bin` (downloaded from the official GitHub release at most once a day,
+because Debian's package goes stale and YouTube stops working). Treat the browser as fine for pages and use
+mpv for video. Hardware decoding (the s5p-mfc block, currently
+blacklisted) is a possible later experiment with mpv. If YouTube stops working in mpv, update it with the app
+store (**Update system**); yt-dlp needs frequent updates.
+
+Firefox is further slimmed in `fleet.js`: reduced-motion and no UI animations, no prefetching, push or notification
+prompts, no sponsored suggestions or new-tab tiles, autoplay blocked, no translation engine. Not applied on purpose:
+`fission.autostart=false` (fewer processes, about 150-250 MB less RAM, but it removes site isolation) and
+`accessibility.force_disabled=1` (saves CPU but breaks screen readers). Set them in `about:config` if a machine needs it.
+
+### App store
+
+**Programbutik / App store** (`fleet-store`, in the menu): a list of curated apps (LibreOffice, Chromium,
+Thunderbird, VLC, GIMP ...; edit `rootfs/overlay/usr/share/fleet-store/apps.list`). Tick to install, untick to
+remove, **Update system** installs all updates; **More apps** opens Synaptic for the whole Debian archive. It asks
+for the user's password through polkit (`org.fleetos.apt` -> `/usr/local/sbin/fleet-apt`, which validates package
+names and refuses to remove the desktop or kernel). Packages are installed without recommended extras to save disk.
+The image also ships Atril (PDF), Ristretto (images) and Xarchiver. Process review of the idle desktop showed no
+heavy outliers (largest: xfwm4 and Xorg at about 80 MB each; Firefox is the one big app and has no lighter
+full-featured replacement on armhf), so the package list was left as is.
 
 ## Updates
 

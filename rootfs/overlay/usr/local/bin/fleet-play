@@ -1,0 +1,23 @@
+#!/bin/bash
+# Plays a YouTube (or any yt-dlp supported) link with mpv: far smoother than the browser on these machines,
+# because the web page itself (JavaScript, software painting) is what uses the CPU, not the video decoding.
+# Usage: fleet-play [URL]      (asks for a link when none is given)
+# YouTube changes often and Debian's yt-dlp goes stale, so a current yt-dlp is kept in ~/.local/bin (no root).
+URL=${1:-}
+if [ -z "$URL" ]; then
+  case "${LANG:-}" in sv*) T="Klistra in en länk (YouTube m.fl.):"; W="Spela video" ;; *) T="Paste a link (YouTube etc.):"; W="Play video" ;; esac
+  URL=$(yad --entry --title="$W" --text="$T" --width=520 --center --entry-text="$(xclip -o -selection clipboard 2>/dev/null)" 2>/dev/null) || exit 0
+  [ -n "$URL" ] || exit 0
+fi
+
+BIN="$HOME/.local/bin"; mkdir -p "$BIN"
+# refresh at most once a day, only when online; keep the old one if the download fails
+if [ ! -x "$BIN/yt-dlp" ] || [ -n "$(find "$BIN/yt-dlp" -mtime +1 2>/dev/null)" ]; then
+  if curl -fsSL --max-time 60 -o "$BIN/yt-dlp.new" https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp 2>/dev/null \
+     && head -c2 "$BIN/yt-dlp.new" | grep -q '#!'; then
+    chmod +x "$BIN/yt-dlp.new"; mv -f "$BIN/yt-dlp.new" "$BIN/yt-dlp"
+  else
+    rm -f "$BIN/yt-dlp.new"; touch "$BIN/yt-dlp" 2>/dev/null
+  fi
+fi
+PATH="$BIN:$PATH" exec mpv --force-window=immediate "$URL"

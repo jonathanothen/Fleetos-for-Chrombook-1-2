@@ -1,0 +1,59 @@
+#!/bin/bash
+# FleetOS app store: tick an app to install it, untick to remove it, "Update system" installs all updates.
+# Packages come from the Debian repositories; the list is /usr/share/fleet-store/apps.list.
+# Anything not on the list can be found with Synaptic ("Fler program" button).
+LIST=/usr/share/fleet-store/apps.list
+case "${LANG:-}" in
+  sv*) T_TITLE="Programbutik"; T_TEXT="Bocka i för att installera, bocka ur för att ta bort."; T_APPLY="Verkställ"
+       T_UPD="Uppdatera systemet"; T_MORE="Fler program"; T_CLOSE="Stäng"; T_WORK="Arbetar..."; T_DONE="Klart."
+       T_NONET="Ingen internetanslutning. Anslut till Wi-Fi först." ;;
+  *)   T_TITLE="App store"; T_TEXT="Tick to install, untick to remove."; T_APPLY="Apply"
+       T_UPD="Update system"; T_MORE="More apps"; T_CLOSE="Close"; T_WORK="Working..."; T_DONE="Done."
+       T_NONET="No internet connection. Connect to Wi-Fi first." ;;
+esac
+
+installed() { dpkg-query -W -f='${db:Status-Status}' "$1" 2>/dev/null | grep -qx installed; }
+
+# Runs a command as root through pkexec and shows its output live
+run_root() {
+  { pkexec /usr/local/sbin/fleet-apt "$@" 2>&1; echo; echo "== $T_DONE (exit ${PIPESTATUS[0]})"; } \
+    | yad --text-info --title="$T_TITLE" --width=700 --height=420 --center --tail --fontname="monospace 9" \
+          --button="$T_CLOSE:0" 2>/dev/null
+}
+
+online() { nmcli -t -f STATE general 2>/dev/null | grep -q connected; }
+
+while true; do
+  rows=()
+  while IFS='|' read -r pkg name desc; do
+    case "$pkg" in ''|\#*) continue ;; esac
+    if installed "$pkg"; then rows+=(TRUE) ; else rows+=(FALSE); fi
+    rows+=("$name" "$desc" "$pkg")
+  done < "$LIST"
+
+  out=$(yad --list --checklist --title="$T_TITLE" --text="$T_TEXT" --width=760 --height=520 --center \
+        --column="" --column="App" --column="Description" --column="pkg" --hide-column=4 \
+        --print-column=0 --separator='|' --search-column=2 \
+        --button="$T_UPD:2" --button="$T_MORE:3" --button="$T_CLOSE:1" --button="$T_APPLY:0" \
+        "${rows[@]}" 2>/dev/null)
+  rc=$?
+
+  case $rc in
+    0)  # compare the ticks against what is installed
+        # one output line per row: TICK|name|description|package|   (row order may change if the user sorted)
+        add=(); del=()
+        while IFS='|' read -r t _ _ p _; do
+          [ -n "$p" ] || continue
+          if [ "$t" = TRUE ] && ! installed "$p"; then add+=("$p"); fi
+          if [ "$t" != TRUE ] && installed "$p"; then del+=("$p"); fi
+        done <<< "$out"
+        if { [ ${#add[@]} -gt 0 ] && ! online; }; then yad --info --text="$T_NONET" --button=OK 2>/dev/null; continue; fi
+        [ ${#add[@]} -gt 0 ] && run_root install "${add[@]}"
+        [ ${#del[@]} -gt 0 ] && run_root remove "${del[@]}"
+        ;;
+    2)  online || { yad --info --text="$T_NONET" --button=OK 2>/dev/null; continue; }
+        run_root upgrade ;;
+    3)  nohup synaptic-pkexec >/dev/null 2>&1 & ;;
+    *)  exit 0 ;;
+  esac
+done

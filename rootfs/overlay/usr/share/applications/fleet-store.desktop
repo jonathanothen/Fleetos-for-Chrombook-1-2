@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=App store
+Name[sv]=Programbutik
+Comment=Install, remove and update software
+Comment[sv]=Installera, ta bort och uppdatera program
+Exec=/usr/local/bin/fleet-store
+Icon=system-software-install
+Categories=System;Settings;PackageManager;

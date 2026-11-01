@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Play video link
+Name[sv]=Spela videolänk
+Comment=Smooth YouTube playback (mpv)
+Comment[sv]=Mjuk YouTube-uppspelning (mpv)
+Exec=/usr/local/bin/fleet-play %u
+Icon=video-x-generic
+Categories=AudioVideo;Video;Player;

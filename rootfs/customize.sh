@@ -49,6 +49,10 @@ chmod 0440 /etc/sudoers.d/fleet-brightness
 visudo -cf /etc/sudoers.d/fleet-brightness
 # Debian enables ssh automatically when openssh-server is installed; turn it off explicitly.
 systemctl disable ssh.service ssh.socket 2>/dev/null || true
+# Speed: units that only cost boot time or idle CPU/RAM on these machines. All still start on demand where
+# something needs them (blueman-mechanism is D-Bus activated; e2scrub is for LVM, we use plain ext4).
+systemctl disable blueman-mechanism.service e2scrub_reap.service e2scrub_all.timer man-db.timer \
+  NetworkManager-wait-online.service 2>/dev/null || true
 systemctl set-default graphical.target
 # SSH host keys and machine-id must be unique per machine -> created at first boot
 rm -f /etc/ssh/ssh_host_*
