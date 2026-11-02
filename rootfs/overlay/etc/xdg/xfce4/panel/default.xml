@@ -9,6 +9,13 @@
       <property name="position" type="string" value="p=6;x=0;y=0"/>
       <property name="length" type="uint" value="100"/>
       <property name="position-locked" type="bool" value="true"/>
+      <property name="background-style" type="uint" value="1"/>
+      <property name="background-rgba" type="array">
+        <value type="double" value="0.961"/>
+        <value type="double" value="0.961"/>
+        <value type="double" value="0.969"/>
+        <value type="double" value="1"/>
+      </property>
       <property name="icon-size" type="uint" value="18"/>
       <property name="size" type="uint" value="32"/>
       <property name="plugin-ids" type="array">

@@ -29,12 +29,17 @@ rm -f /tmp/linux-image-*.deb
 # They are installed on the build host by rootfs/host-themes.sh (a mmdebstrap hook that runs before this script).
 # Stop here if they are missing: a WhiteSur-less image has no window frames and no base for the FleetOS themes.
 for t in WhiteSur-Light WhiteSur-Dark; do
-  [ -f "/usr/share/themes/$t/gtk-3.0/gtk.css" ] || { echo "ERROR: $t is missing (host-themes.sh failed?)"; exit 1; }
+  [ -f "/usr/share/fleet-base/themes/$t/gtk-3.0/gtk.css" ] || { echo "ERROR: $t is missing (host-themes.sh failed?)"; exit 1; }
 done
 [ -d /usr/share/icons/WhiteSur ] || { echo "ERROR: icon theme WhiteSur is missing"; exit 1; }
 # FleetOS themes (light, midnatt, solnedgang, mynta, sakura) are generated from small palette files
 chmod +x /usr/local/sbin/fleet-theme-gen /usr/local/bin/fleet-theme
 /usr/local/sbin/fleet-theme-gen
+# The appearance settings should list FleetOS themes only: drop every other GTK/window-frame theme package files
+# (Default, Emacs, Raleigh, HighContrast ...). The WhiteSur base lives in /usr/share/fleet-base, not here.
+find /usr/share/themes -mindepth 1 -maxdepth 1 ! -name 'FleetOS*' -exec rm -rf {} +
+ls /usr/share/themes | tr '\n' ' '; echo
+[ "$(ls -d /usr/share/themes/FleetOS* | wc -l)" -eq 5 ] || { echo "ERROR: expected 5 FleetOS themes"; exit 1; }
 
 # --- Services ---
 # First-boot wizard: runs on the installed machine, not on the install stick (see fleet-setup.service)

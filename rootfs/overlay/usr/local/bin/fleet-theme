@@ -14,11 +14,26 @@ apply() {
   [ -f "$D/$id.conf" ] || { echo "unknown theme: $id" >&2; exit 1; }
   gtk=$(field "$id" GTKNAME); dark=$(field "$id" DARK)
   wall="/usr/share/backgrounds/fleetos/fleetos-$id.svg"
-  frame=WhiteSur-Light
-  [ "$dark" = 1 ] && [ -d /usr/share/themes/WhiteSur-Dark ] && frame=WhiteSur-Dark
+  frame=$gtk   # fleet-theme-gen links the base theme's xfwm4 frame into every FleetOS theme
 
+  # WhiteSur ships its panel/status icons in a dark and a light variant; the wrong one is invisible (white on white)
+  icons=WhiteSur-light
+  [ "$dark" = 1 ] && [ -d /usr/share/icons/WhiteSur-dark ] && icons=WhiteSur-dark
+  [ -d "/usr/share/icons/$icons" ] || icons=WhiteSur
+  xfconf-query -c xsettings -p /Net/IconThemeName -n -t string -s "$icons"
   xfconf-query -c xsettings -p /Net/ThemeName -n -t string -s "$gtk"
   xfconf-query -c xfwm4 -p /general/theme     -n -t string -s "$frame"
+
+  # Panel plugins that run in their own process (tray, volume, battery, keyboard) cannot see the GTK panel
+  # background and show the wallpaper through as dark boxes. A solid panel colour is handed to them by the panel.
+  rgba=$(field "$id" PANEL | sed -n 's/^rgba(\([0-9]*\),\([0-9]*\),\([0-9]*\),.*/\1 \2 \3/p')
+  if [ -n "$rgba" ]; then
+    set -- $rgba
+    xfconf-query -c xfce4-panel -p /panels/panel-1/background-style -n -t uint -s 1
+    xfconf-query -c xfce4-panel -p /panels/panel-1/background-rgba -n -a \
+      -t double -s "$(awk "BEGIN{printf \"%.3f\", $1/255}")" -t double -s "$(awk "BEGIN{printf \"%.3f\", $2/255}")" \
+      -t double -s "$(awk "BEGIN{printf \"%.3f\", $3/255}")" -t double -s 1.0
+  fi
 
   props=$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -E '/last-image$')
   [ -z "$props" ] && props="/backdrop/screen0/monitor0/workspace0/last-image"

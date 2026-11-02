@@ -35,4 +35,13 @@ for d in WhiteSur-Light WhiteSur-Dark; do
   [ -f "$ROOT/usr/share/themes/$d/xfwm4/themerc" ]   || { echo "ERROR: $d/xfwm4/themerc missing (window frames)"; exit 1; }
 done
 [ -d "$ROOT/usr/share/icons/WhiteSur" ] || { echo "ERROR: icon theme WhiteSur missing"; ls "$ROOT/usr/share/icons"; exit 1; }
-echo "WhiteSur themes installed: $(ls "$ROOT/usr/share/themes" | tr '\n' ' ')"
+
+# The WhiteSur themes are only the BASE of the FleetOS themes. Move them out of /usr/share/themes so that the
+# appearance settings list nothing but "FleetOS ..." (the generated themes import the base from fleet-base, and
+# link its window-frame theme). The two icon-theme variants are hidden from the icon list the same way.
+mkdir -p "$ROOT/usr/share/fleet-base/themes"
+for d in "$ROOT"/usr/share/themes/WhiteSur-*; do mv "$d" "$ROOT/usr/share/fleet-base/themes/"; done
+for v in WhiteSur-light WhiteSur-dark; do
+  [ -f "$ROOT/usr/share/icons/$v/index.theme" ] && printf '\nHidden=true\n' >> "$ROOT/usr/share/icons/$v/index.theme"
+done
+echo "WhiteSur base themes: $(ls "$ROOT/usr/share/fleet-base/themes" | tr '\n' ' ')"

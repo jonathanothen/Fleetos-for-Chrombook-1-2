@@ -70,7 +70,8 @@ machine can never be left without a way to log in. To reuse a machine for someon
 ## Themes
 
 Five themes, generated at build time from small palette files in `rootfs/overlay/usr/share/fleet-themes/`
-(`light`, `midnatt` dark, `solnedgang`, `mynta`, `sakura`). Switch with **Utseende** in the menu or
+(`light` white and blue, `midnatt` dark blue-grey, `solnedgang` dark plum with an orange accent, `mynta` mint green,
+`sakura` pink; each has its own tinted window, panel, menu and dock colours). Switch with **Utseende** in the menu or
 `fleet-theme set <id>` / `fleet-theme list`. A theme is a GTK CSS layer on top of WhiteSur, a Plank dock theme
 and a flat SVG wallpaper; it also drives the login screen. The compositor is on by default (rounded menus, window shadows). It is software-rendered on these machines, so on a
 very slow one you can turn it off with `fleet-effects off` (menus then become plain rectangles; `fleet-effects on`

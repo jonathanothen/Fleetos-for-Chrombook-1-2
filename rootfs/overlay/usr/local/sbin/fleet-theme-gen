@@ -17,14 +17,17 @@ for conf in "$SRC"/*.conf; do
   done < "$conf"
 
   # Dark base theme missing (WhiteSur build failed or only Light installed)? fall back to Light.
-  if [ -z "$OUT" ] && [ ! -d "/usr/share/themes/$BASE" ]; then
-    echo "WARN: /usr/share/themes/$BASE missing, using WhiteSur-Light for $ID" >&2
+  if [ -z "$OUT" ] && [ ! -d "/usr/share/fleet-base/themes/$BASE" ]; then
+    echo "WARN: /usr/share/fleet-base/themes/$BASE missing, using WhiteSur-Light for $ID" >&2
+    BASE=WhiteSur-Light
     # Rewrite the existing BASE rule (appending a second one would never match: the first rule already ran)
     sed -i 's#^s|@@BASE@@|.*#s|@@BASE@@|WhiteSur-Light|g#' "$sedf"
   fi
 
   T="$OUT/usr/share/themes/$GTKNAME"
   mkdir -p "$T/gtk-3.0" "$OUT/usr/share/plank/themes/$GTKNAME" "$OUT/usr/share/backgrounds/fleetos"
+  # The window frame (xfwm4) comes from the base theme, so the frame list also shows only FleetOS themes
+  ln -sfn "/usr/share/fleet-base/themes/$BASE/xfwm4" "$T/xfwm4"
   sed -f "$sedf" "$SRC/gtk.css.in"       > "$T/gtk-3.0/gtk.css"
   sed -f "$sedf" "$SRC/dock.theme.in"    > "$OUT/usr/share/plank/themes/$GTKNAME/dock.theme"
   sed -f "$sedf" "$SRC/wallpaper.svg.in" > "$OUT/usr/share/backgrounds/fleetos/fleetos-$ID.svg"
