@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Appearance
+Exec=xfce4-appearance-settings
+Icon=org.xfce.settings.appearance
+NoDisplay=true
+Categories=X-XFCE;Settings;DesktopSettings;
