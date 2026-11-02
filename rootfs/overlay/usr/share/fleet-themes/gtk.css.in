@@ -171,7 +171,7 @@ infobar.success { background-color: alpha(@fleet_green, 0.20); }
 frame > border, .frame { border-radius: 10px; border-color: @fleet_line; }
 
 /* ---------- Xfce panel ---------- */
-.xfce4-panel, #XfcePanelWindow { background-color: @@PANEL@@; color: @fleet_text; border-bottom: 1px solid alpha(@@OVER@@, 0.07); }
+.xfce4-panel, #XfcePanelWindow { background-color: @@PANEL@@; color: @fleet_text; border-bottom: 1px solid alpha(@fleet_accent, 0.55); }
 /* The base theme (WhiteSur) styles the plugins for its own dark panel; on top of our panel that showed up as
    dark boxes around the tray icons and the menu button. Clear every background inside the panel; the hover and
    active states below add colour back. */
@@ -193,6 +193,13 @@ frame > border, .frame { border-radius: 10px; border-color: @fleet_line; }
    black. Its outer frame node fills the whole window: give it the menu colour and square corners. */
 #whiskermenu-window frame, #whiskermenu-window frame > border { background-color: @@MENU@@; border-radius: 0; border-width: 0; box-shadow: none; margin: 0; }
 #whiskermenu-window entry { border-radius: 999px; padding: 5px 12px; }
+/* The lists inside the menu follow the theme instead of the base theme's grey */
+#whiskermenu-window treeview, #whiskermenu-window treeview.view { background-color: @fleet_surface; color: @fleet_text; }
+#whiskermenu-window scrolledwindow, #whiskermenu-window viewport, #whiskermenu-window .view,
+#whiskermenu-window list, #whiskermenu-window listbox, #whiskermenu-window row, #whiskermenu-window iconview,
+#whiskermenu-window treeview.view:not(:selected), #whiskermenu-window .whiskermenu-applications { background-color: @fleet_surface; }
+#whiskermenu-window button { background-color: transparent; color: @fleet_text; }
+#whiskermenu-window button:checked, #whiskermenu-window button:hover { background-color: alpha(@fleet_accent, 0.25); }
 
 /* ---------- Thunar tweaks ---------- */
 .thunar .sidebar, window.thunar placessidebar { background-color: @fleet_side; }
